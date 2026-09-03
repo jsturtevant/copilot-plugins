@@ -1,0 +1,30 @@
+{
+  "name": "jsturtevant-copilot-plugins",
+  "metadata": {
+    "description": "Copilot plugins maintained by jsturtevant.",
+    "version": "1.0.0"
+  },
+  "owner": {
+    "name": "jsturtevant"
+  },
+  "plugins": [
+    {
+      "name": "fleet-review",
+      "description": "Run a comprehensive parallel code review across security, safety, networking, isolation, SDK consistency, and code quality.",
+      "version": "1.0.0",
+      "author": {
+        "name": "jsturtevant",
+        "url": "https://github.com/jsturtevant"
+      },
+      "homepage": "https://github.com/jsturtevant/copilot-plugins/tree/main/plugins/fleet-review",
+      "repository": "https://github.com/jsturtevant/copilot-plugins",
+      "keywords": [
+        "code-review",
+        "security",
+        "quality",
+        "parallel-agents"
+      ],
+      "source": "./plugins/fleet-review"
+    }
+  ]
+}
