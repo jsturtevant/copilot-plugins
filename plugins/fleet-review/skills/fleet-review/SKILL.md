@@ -4,8 +4,9 @@ description: >-
   Launch a fleet of parallel code-review agents to perform a comprehensive codebase review.
   Use when the user says "fleet review", "fleet deployed", "fleet: review", or asks for a
   full codebase security or quality review across multiple areas simultaneously. The review
-  covers security issues, memory safety, network permissions, sandbox isolation, SDK
-  consistency, and code quality. Results are written to docs/review/ as a Markdown file.
+  covers security, logic and correctness, resource safety, network and input boundaries,
+  sandbox isolation, and SDK/API consistency. Results are written to docs/review/ as a
+  Markdown file.
 ---
 
 # Fleet Review
@@ -20,18 +21,19 @@ Do not commit or stage any changes. Leave all review artifacts for the developer
 
 ## Workflow
 
-### 1. Partition the codebase into six review areas
+### 1. Review branch changes through six complementary lenses
 
-| Agent | Focus Area | What to look for |
+| Agent | Review lens | What to look for |
 | --- | --- | --- |
-| 1 - Security & Permissions | Auth, access control, permission checks | Missing permission checks, privilege escalation, fail-open patterns |
-| 2 - Memory & Resource Safety | Allocations, buffers, resource limits | Uncapped allocations, OOM vectors, buffer overflows, resource exhaustion |
-| 3 - Network & HTTP | HTTP clients, domain allowlists, timeouts | Permission bypasses, missing timeouts, scheme, port, or path gaps |
-| 4 - Sandbox Isolation | Guest/host boundaries, eval, globals | Sandbox escapes, global pollution, silently ignored configuration |
-| 5 - SDK Consistency | Cross-SDK API parity, error handling | Missing features in some SDKs, inconsistent error models, type mismatches |
-| 6 - Code Quality & DRY | Duplication, shared types, build/CI | Duplicated code, missing shared abstractions, stale declarations, test gaps |
+| 1 - Security & Permissions | Authentication, authorization, trust boundaries | Missing checks, privilege escalation, fail-open behavior |
+| 2 - Logic & Correctness | Control flow, state transitions, edge cases | Incorrect assumptions, unreachable states, race conditions, data corruption |
+| 3 - Resource Safety & Reliability | Memory, lifecycle, limits, failure handling | Leaks, uncapped work, exhaustion, partial failures, unsafe retries |
+| 4 - Network & Input Boundaries | HTTP, URLs, external input, allowlists | Validation gaps, bypasses, missing timeouts, unsafe schemes, ports, or paths |
+| 5 - Sandbox Isolation | Guest/host boundaries, evaluation, globals | Escapes, global pollution, capability leaks, ignored configuration |
+| 6 - SDK/API Consistency & Maintainability | Cross-SDK parity, types, tests, shared code | Behavioral mismatches, stale declarations, duplication, missing regression tests |
 
-If the user specifies custom focus areas, adapt the partitioning accordingly.
+Each agent reviews the full branch diff through its assigned lens; areas may overlap. If the user
+specifies custom focus areas, adapt the review lenses accordingly.
 
 ### 2. Launch agents in parallel
 
@@ -46,8 +48,8 @@ Use different models for diverse perspectives:
 
 Each agent prompt must:
 
-- State its focus area clearly.
-- Instruct it to explore the full codebase relevant to its area.
+- State its review lens clearly.
+- Instruct it to review the full branch diff through that lens.
 - Request findings in structured tables with severity, file and line, and description.
 - Group findings by severity: Critical, High, Medium, and Low.
 - Provide evidence for every issue.
