@@ -7,6 +7,7 @@ const contentTypes = {
     "/": "text/html; charset=utf-8",
     "/app.js": "text/javascript; charset=utf-8",
     "/diff.js": "text/javascript; charset=utf-8",
+    "/recent.js": "text/javascript; charset=utf-8",
     "/styles.css": "text/css; charset=utf-8",
 };
 

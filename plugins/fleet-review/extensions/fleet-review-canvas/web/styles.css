@@ -130,6 +130,83 @@ main {
   border-bottom: 1px solid var(--border);
 }
 
+.recent-reviews {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.recent-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 9px;
+}
+
+.recent-heading p {
+  margin-top: 3px;
+  color: var(--muted);
+}
+
+.recent-count {
+  color: var(--muted);
+  font-size: var(--text-caption, 12px);
+  white-space: nowrap;
+}
+
+.recent-review-list {
+  border: 1px solid var(--border);
+  border-bottom: 0;
+}
+
+.recent-review-item {
+  width: 100%;
+  min-height: 48px;
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(88px, auto) auto minmax(150px, auto);
+  gap: 14px;
+  align-items: center;
+  padding: 7px 11px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.recent-review-item:hover,
+.recent-review-item.selected {
+  background: var(--surface-subtle);
+}
+
+.recent-review-item.selected {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.recent-review-main {
+  min-width: 0;
+  display: grid;
+}
+
+.recent-review-main strong,
+.recent-review-main span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent-review-main span,
+.recent-findings,
+.recent-review-item time {
+  color: var(--muted);
+  font-size: var(--text-caption, 12px);
+}
+
+.recent-review-item time {
+  text-align: right;
+  white-space: nowrap;
+}
+
 .section-heading,
 .review-header,
 .review-title-line,
@@ -703,6 +780,14 @@ fieldset {
     width: 100%;
     justify-content: flex-start;
   }
+
+  .recent-review-item {
+    grid-template-columns: minmax(220px, 1fr) auto auto;
+  }
+
+  .recent-findings {
+    display: none;
+  }
 }
 
 @media (max-width: 700px) {
@@ -719,6 +804,26 @@ fieldset {
 
   .launch-grid {
     grid-template-columns: 1fr;
+  }
+
+  .recent-heading {
+    align-items: flex-start;
+  }
+
+  .recent-review-item {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px 10px;
+  }
+
+  .recent-review-item time {
+    grid-column: 1;
+    grid-row: 2;
+    text-align: left;
+  }
+
+  .recent-review-item .state-badge {
+    grid-column: 2;
+    grid-row: 1 / span 2;
   }
 
   .review-body {

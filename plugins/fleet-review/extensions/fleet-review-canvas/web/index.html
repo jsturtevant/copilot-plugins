@@ -57,6 +57,17 @@
         <p id="launch-status" class="status-line" role="status" aria-live="polite"></p>
       </section>
 
+      <section id="recent-reviews" class="recent-reviews" aria-labelledby="recent-title" hidden>
+        <div class="recent-heading">
+          <div>
+            <h2 id="recent-title">Recent reviews</h2>
+            <p>Reopen a persisted review from any configured repository.</p>
+          </div>
+          <span id="recent-count" class="recent-count"></span>
+        </div>
+        <div id="recent-review-list" class="recent-review-list" role="list"></div>
+      </section>
+
       <section id="empty-state" class="empty-state">
         <div class="empty-mark" aria-hidden="true">FR</div>
         <h2>Evidence arrives here</h2>

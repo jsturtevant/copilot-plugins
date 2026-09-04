@@ -1,4 +1,5 @@
 import { buildLineDiff } from "./diff.js";
+import { recentReviewRuns } from "./recent.js";
 
 const token = new URLSearchParams(window.location.search).get("token");
 const apiUrl = (path) => `${path}?token=${encodeURIComponent(token ?? "")}`;
@@ -9,6 +10,9 @@ const elements = {
     prSelect: document.querySelector("#pr-select"),
     runReview: document.querySelector("#run-review"),
     launchStatus: document.querySelector("#launch-status"),
+    recentReviews: document.querySelector("#recent-reviews"),
+    recentCount: document.querySelector("#recent-count"),
+    recentReviewList: document.querySelector("#recent-review-list"),
     emptyState: document.querySelector("#empty-state"),
     workspace: document.querySelector("#review-workspace"),
     reviewTitle: document.querySelector("#review-title"),
@@ -99,6 +103,89 @@ function formatTime(value) {
     }).format(new Date(value));
 }
 
+function findingCount(run) {
+    return run.report?.counts.confirmedTotal ?? run.report?.findings.length ?? 0;
+}
+
+async function openRecentReview(run) {
+    const project = state.projects.find(
+        (candidate) => candidate.githubRepo.toLowerCase() === run.repository.toLowerCase(),
+    );
+    if (!project?.enabled) {
+        setStatus(`The configured project for ${run.repository} is unavailable.`, true);
+        return;
+    }
+
+    busy = true;
+    setStatus("Opening saved review…");
+    render();
+    try {
+        elements.projectSelect.value = project.id;
+        const repositoryKey = run.repository.toLowerCase();
+        if (!state.pullRequests[repositoryKey]) {
+            state = await request("/api/pull-requests", { repository: run.repository });
+        }
+        const pullRequests = state.pullRequests[repositoryKey] ?? [];
+        if (!pullRequests.some((pullRequest) => pullRequest.number === run.prNumber)) {
+            pullRequests.push({
+                number: run.prNumber,
+                title: run.report?.pr.title ?? `Saved review for PR #${run.prNumber}`,
+                isDraft: Boolean(run.report?.pr.isDraft),
+                historic: true,
+            });
+        }
+        renderProjects();
+        elements.projectSelect.value = project.id;
+        renderPullRequests();
+        elements.prSelect.value = String(run.prNumber);
+        selectedRunId = run.runId;
+        selectedTab = "report";
+        setStatus("");
+    } catch (error) {
+        setStatus(`Saved review could not open: ${error.message}`, true);
+    } finally {
+        busy = false;
+        render();
+        if (selectedRun()?.runId === run.runId) {
+            elements.workspace.scrollIntoView({ block: "start", behavior: "smooth" });
+        }
+    }
+}
+
+function renderRecentReviews() {
+    const runs = recentReviewRuns(state?.reviews);
+    elements.recentReviews.hidden = runs.length === 0;
+    elements.recentCount.textContent = `${runs.length} recent`;
+    elements.recentReviewList.replaceChildren(
+        ...runs.map((run) => {
+            const title = run.report?.pr.title ?? `Pull request #${run.prNumber}`;
+            const count = findingCount(run);
+            const button = element("button", {
+                className: `recent-review-item${selectedRun()?.runId === run.runId ? " selected" : ""}`,
+                type: "button",
+                "aria-label": `Open ${run.repository} pull request ${run.prNumber}: ${title}`,
+            }, [
+                element("span", { className: "recent-review-main" }, [
+                    element("strong", { text: `#${run.prNumber} ${title}` }),
+                    element("span", { text: run.repository }),
+                ]),
+                element("span", {
+                    className: "recent-findings",
+                    text: run.report ? `${count} finding${count === 1 ? "" : "s"}` : "No report yet",
+                }),
+                element("span", { className: `state-badge`, text: stateLabel(run) }),
+                element("time", {
+                    datetime: run.completedAt ?? run.createdAt,
+                    text: formatTime(run.completedAt ?? run.createdAt),
+                }),
+            ]);
+            button.disabled = busy;
+            button.addEventListener("click", () => void openRecentReview(run));
+            return element("div", { role: "listitem" }, [button]);
+        }),
+    );
+}
+
 function renderProjects() {
     const previous = elements.projectSelect.value;
     elements.projectSelect.replaceChildren(element("option", { value: "", text: "Select a repository" }));
@@ -145,7 +232,8 @@ function renderPullRequests() {
             elements.prSelect.value = previous;
         }
     }
-    elements.runReview.disabled = busy || !pullRequestForSelection();
+    const pullRequest = pullRequestForSelection();
+    elements.runReview.disabled = busy || !pullRequest || pullRequest.historic;
 }
 
 function stateLabel(run) {
@@ -512,6 +600,7 @@ function renderReview() {
 function render() {
     renderProjects();
     renderPullRequests();
+    renderRecentReviews();
     renderReview();
 }
 

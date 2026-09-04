@@ -153,7 +153,7 @@ The palette is a Copilot-native neutral foundation with one interaction blue and
 
 ## Layout
 
-The canvas uses a full-width shell with 22px horizontal gutters and a compact launch band above the review workspace. Launch controls form a four-column grid weighted toward pull-request selection. The review workspace is a bordered two-column inspection frame: a fixed 270px finding rail beside a fluid evidence panel. Content sections use 20px vertical rhythm, while controls and rail rows use a tighter 6–12px rhythm.
+The canvas uses a full-width shell with 22px horizontal gutters and a compact launch band above the review workspace. Launch controls form a four-column grid weighted toward pull-request selection. A cross-repository recent-review ledger sits between launch and evidence, using compact ruled rows rather than cards. The review workspace is a bordered two-column inspection frame: a fixed 270px finding rail beside a fluid evidence panel. Content sections use 20px vertical rhythm, while controls and ledger rows use a tighter 6–12px rhythm.
 
 At 900px, launcher controls become two columns and review actions move below their heading. At 700px, gutters contract to 14px, launcher controls stack, the finding rail moves above the evidence panel, count cells stack, and code comparisons become a single column. Code remains horizontally scrollable rather than wrapping.
 
@@ -197,6 +197,7 @@ Controls, notices, and code containers use gently squared 6px corners. Badges us
 - **Typography:** Finding rows use the label scale; severity group labels are smaller, uppercase, bold, and tracked.
 - **States:** Hover uses a subtle canvas. Selection returns to the main canvas and adds a three-pixel inset blue marker at the leading edge.
 - **Mobile:** The rail moves above content and its findings list is capped at 220px with vertical scrolling.
+- **Recent Reviews:** The eight newest persisted runs form a full-width ledger with PR, repository, finding count, status, and timestamp. Selecting a row restores that exact run, including reviews whose PR is no longer open.
 
 ### Code Comparison
 - **Style:** Two equal bordered panes on a subtle canvas, each with a compact ruled header and horizontally scrollable monospace lines.

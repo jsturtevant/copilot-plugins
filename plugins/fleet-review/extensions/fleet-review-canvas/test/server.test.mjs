@@ -17,6 +17,10 @@ test("serves the canvas and protects state with a capability token", async () =>
         assert.equal(styles.status, 200);
         assert.match(await styles.text(), /\[hidden\]\s*\{\s*display:\s*none\s*!important;/);
 
+        const recent = await fetch(new URL("/recent.js", url));
+        assert.equal(recent.status, 200);
+        assert.match(await recent.text(), /recentReviewRuns/);
+
         const denied = await fetch(new URL("/api/state", url));
         assert.equal(denied.status, 403);
 
