@@ -13,6 +13,10 @@ test("serves the canvas and protects state with a capability token", async () =>
         assert.equal(page.status, 200);
         assert.match(await page.text(), /Fleet Review/);
 
+        const styles = await fetch(new URL("/styles.css", url));
+        assert.equal(styles.status, 200);
+        assert.match(await styles.text(), /\[hidden\]\s*\{\s*display:\s*none\s*!important;/);
+
         const denied = await fetch(new URL("/api/state", url));
         assert.equal(denied.status, 403);
 
