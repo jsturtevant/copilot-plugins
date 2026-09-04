@@ -44,6 +44,58 @@ test("uses a captured response even if idle waiting fails afterward", async () =
     assert.deepEqual(await bridge.request("prompt"), { projects: [{ id: "one" }] });
 });
 
+test("returns a review session bridge response without waiting for session idle", async () => {
+    let listener;
+    const session = {
+        on(eventType, handler) {
+            assert.equal(eventType, "assistant.message");
+            listener = handler;
+            return () => {
+                listener = undefined;
+            };
+        },
+        sendAndWait() {
+            queueMicrotask(() => {
+                listener?.({
+                    data: {
+                        content:
+                            'FLEET_CANVAS_BRIDGE_START\n{"projectSessionId":"session-1","executionLocation":"local"}\nFLEET_CANVAS_BRIDGE_END',
+                    },
+                });
+            });
+            return new Promise(() => {});
+        },
+    };
+    const bridge = new AgentBridge(session);
+
+    const result = await Promise.race([
+        bridge.createReviewSession({
+            projectId: "project-1",
+            repository: "owner/repo",
+            pullRequest: {
+                number: 1,
+                title: "Fix",
+                url: "https://example.test/pull/1",
+                isDraft: false,
+                author: "author",
+                baseRefName: "main",
+                headRefName: "fix",
+                headRefOid: "a".repeat(40),
+            },
+            executionLocation: "local",
+            runId: "run-1",
+        }),
+        new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("bridge response was not returned promptly")), 100),
+        ),
+    ]);
+
+    assert.deepEqual(result, {
+        projectSessionId: "session-1",
+        executionLocation: "local",
+    });
+});
+
 test("reports missing markers distinctly", async () => {
     const bridge = new AgentBridge(sessionThat({ emittedContent: "No structured payload" }));
     await assert.rejects(

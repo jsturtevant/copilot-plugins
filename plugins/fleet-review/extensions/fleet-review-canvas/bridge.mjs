@@ -75,23 +75,44 @@ export class AgentBridge {
     async request(prompt) {
         return this.queue.run(async () => {
             const assistantMessages = [];
+            let resolveBridgeReply;
+            const bridgeReply = new Promise((resolve) => {
+                resolveBridgeReply = resolve;
+            });
             const unsubscribe = this.session.on("assistant.message", (event) => {
                 if (typeof event?.data?.content === "string") {
                     assistantMessages.push(event.data.content);
+                    if (
+                        event.data.content.includes(BRIDGE_START) &&
+                        event.data.content.includes(BRIDGE_END)
+                    ) {
+                        resolveBridgeReply(event.data.content);
+                    }
                 }
             });
-            let response;
-            let waitError;
+            const waitForTurn = Promise.resolve()
+                .then(() => this.session.sendAndWait({ prompt }, 180_000))
+                .then(
+                    (response) => ({ response }),
+                    (waitError) => ({ waitError }),
+                );
+            let outcome;
             try {
-                response = await this.session.sendAndWait({ prompt }, 180_000);
-            } catch (error) {
-                waitError = error;
+                outcome = await Promise.race([
+                    waitForTurn,
+                    bridgeReply.then((content) => ({ bridgeReply: content })),
+                ]);
             } finally {
                 unsubscribe();
             }
+            if (outcome.bridgeReply) {
+                return extractDelimitedJson(outcome.bridgeReply, BRIDGE_START, BRIDGE_END);
+            }
 
             const responseContent =
-                typeof response?.data?.content === "string" ? response.data.content : "";
+                typeof outcome.response?.data?.content === "string"
+                    ? outcome.response.data.content
+                    : "";
             const candidates = [
                 responseContent,
                 ...[...assistantMessages].reverse(),
@@ -104,8 +125,8 @@ export class AgentBridge {
                 }
             }
 
-            if (waitError) {
-                throw new Error(`Copilot bridge request failed: ${waitError.message}`);
+            if (outcome.waitError) {
+                throw new Error(`Copilot bridge request failed: ${outcome.waitError.message}`);
             }
             throw new Error(
                 assistantMessages.length > 0
