@@ -262,9 +262,17 @@ export async function launchVscode(
     workspace,
     spawnProcess = spawn,
     handoffDelayMs = 250,
+    environment = process.env,
 ) {
+    const childEnvironment = { ...environment };
+    for (const name of Object.keys(childEnvironment)) {
+        if (name.toUpperCase() === "ELECTRON_RUN_AS_NODE") {
+            delete childEnvironment[name];
+        }
+    }
     const child = spawnProcess(executable, ["--new-window", workspace], {
         detached: false,
+        env: childEnvironment,
         stdio: "ignore",
         windowsHide: true,
     });

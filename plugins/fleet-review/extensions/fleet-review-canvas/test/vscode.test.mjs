@@ -43,7 +43,7 @@ test("resolves the native Windows executable without a command shell", () => {
     assert.ok(candidates.includes("C:\\Tools\\Microsoft VS Code\\Code.exe"));
 });
 
-test("keeps VS Code attached through handoff and then unreferences it", async () => {
+test("sanitizes Electron mode while preserving the VS Code handoff environment", async () => {
     const child = new EventEmitter();
     let invocation;
     let unrefCalled = false;
@@ -60,6 +60,11 @@ test("keeps VS Code attached through handoff and then unreferences it", async ()
             return child;
         },
         5,
+        {
+            ELECTRON_RUN_AS_NODE: "1",
+            NORMAL_SETTING: "preserved",
+            PATH: "C:\\Tools",
+        },
     );
     await launched;
 
@@ -68,6 +73,10 @@ test("keeps VS Code attached through handoff and then unreferences it", async ()
         ["--new-window", "C:\\review-worktree"],
         {
             detached: false,
+            env: {
+                NORMAL_SETTING: "preserved",
+                PATH: "C:\\Tools",
+            },
             stdio: "ignore",
             windowsHide: true,
         },
