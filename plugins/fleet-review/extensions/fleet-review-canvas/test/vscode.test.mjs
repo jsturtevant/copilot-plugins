@@ -43,7 +43,7 @@ test("resolves the native Windows executable without a command shell", () => {
     assert.ok(candidates.includes("C:\\Tools\\Microsoft VS Code\\Code.exe"));
 });
 
-test("detaches VS Code after the application process starts", async () => {
+test("keeps VS Code attached through handoff and then unreferences it", async () => {
     const child = new EventEmitter();
     let invocation;
     let unrefCalled = false;
@@ -51,18 +51,23 @@ test("detaches VS Code after the application process starts", async () => {
         unrefCalled = true;
     };
 
-    const launched = launchVscode("Code.exe", "C:\\review-worktree", (...args) => {
-        invocation = args;
-        queueMicrotask(() => child.emit("spawn"));
-        return child;
-    });
+    const launched = launchVscode(
+        "Code.exe",
+        "C:\\review-worktree",
+        (...args) => {
+            invocation = args;
+            queueMicrotask(() => child.emit("spawn"));
+            return child;
+        },
+        5,
+    );
     await launched;
 
     assert.deepEqual(invocation, [
         "Code.exe",
         ["--new-window", "C:\\review-worktree"],
         {
-            detached: true,
+            detached: false,
             stdio: "ignore",
             windowsHide: true,
         },
@@ -80,6 +85,29 @@ test("reports a VS Code process launch failure", async () => {
     });
 
     await assert.rejects(() => launched, /spawn failed/);
+});
+
+test("reports an early nonzero VS Code exit", async () => {
+    const child = new EventEmitter();
+    child.unref = () => {};
+
+    const launched = launchVscode(
+        "Code.exe",
+        "C:\\review-worktree",
+        () => {
+            queueMicrotask(() => {
+                child.emit("spawn");
+                child.emit("exit", 1, null);
+            });
+            return child;
+        },
+        50,
+    );
+
+    await assert.rejects(
+        () => launched,
+        /VS Code exited before opening the workspace with code 1/,
+    );
 });
 
 test("materializes a full proposed file from the reviewed line range", () => {

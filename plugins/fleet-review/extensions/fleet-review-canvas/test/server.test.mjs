@@ -44,17 +44,22 @@ test("serves the diff module and routes authenticated VS Code launches", async (
         getState: async () => ({}),
         openFindingInVscode: async (...args) => {
             calls.push(args);
-            await launchVscode("Code.exe", "C:\\review-worktree", () => {
-                launchedProcess = new EventEmitter();
-                launchedProcess.unref = () => {};
-                queueMicrotask(() => launchedProcess.emit("spawn"));
-                exitTimer = setTimeout(() => {
-                    launchedProcessExited = true;
-                    launchedProcess.emit("exit", 0);
-                    launchedProcess.emit("close", 0);
-                }, 2_000);
-                return launchedProcess;
-            });
+            await launchVscode(
+                "Code.exe",
+                "C:\\review-worktree",
+                () => {
+                    launchedProcess = new EventEmitter();
+                    launchedProcess.unref = () => {};
+                    queueMicrotask(() => launchedProcess.emit("spawn"));
+                    exitTimer = setTimeout(() => {
+                        launchedProcessExited = true;
+                        launchedProcess.emit("exit", 0);
+                        launchedProcess.emit("close", 0);
+                    }, 2_000);
+                    return launchedProcess;
+                },
+                5,
+            );
             return { opened: true };
         },
         applyFindingDiff: async (...args) => {

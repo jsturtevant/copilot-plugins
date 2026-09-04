@@ -257,15 +257,47 @@ async function git(workspace, args) {
     return execFileAsync("git", ["-C", workspace, ...args], GIT_OPTIONS);
 }
 
-export async function launchVscode(executable, workspace, spawnProcess = spawn) {
+export async function launchVscode(
+    executable,
+    workspace,
+    spawnProcess = spawn,
+    handoffDelayMs = 250,
+) {
     const child = spawnProcess(executable, ["--new-window", workspace], {
-        detached: true,
+        detached: false,
         stdio: "ignore",
         windowsHide: true,
     });
     await new Promise((resolve, reject) => {
-        child.once("error", reject);
-        child.once("spawn", resolve);
+        let handoffTimer;
+        const cleanup = () => {
+            clearTimeout(handoffTimer);
+            child.off("error", onError);
+            child.off("exit", onExit);
+            child.off("spawn", onSpawn);
+        };
+        const succeed = () => {
+            cleanup();
+            resolve();
+        };
+        const onError = (error) => {
+            cleanup();
+            reject(error);
+        };
+        const onExit = (code, signal) => {
+            if (code === 0) {
+                succeed();
+                return;
+            }
+            const reason = signal ? `signal ${signal}` : `code ${String(code)}`;
+            onError(new Error(`VS Code exited before opening the workspace with ${reason}`));
+        };
+        const onSpawn = () => {
+            handoffTimer = setTimeout(succeed, handoffDelayMs);
+        };
+        child.once("error", onError);
+        child.once("exit", onExit);
+        child.once("spawn", onSpawn);
     });
     child.unref();
 }
