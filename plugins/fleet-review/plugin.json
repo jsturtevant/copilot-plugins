@@ -1,13 +1,15 @@
 {
   "name": "fleet-review",
-  "description": "Run a comprehensive parallel code review across security, correctness, reliability, input boundaries, isolation, and API consistency.",
-  "version": "1.1.0",
+  "description": "Run six-agent pull request reviews from an interactive canvas with durable reports, source annotations, and explicit fix application.",
+  "version": "1.2.0",
   "author": {
     "name": "jsturtevant",
     "url": "https://github.com/jsturtevant"
   },
   "keywords": [
     "code-review",
+    "canvas",
+    "pull-request",
     "security",
     "quality",
     "parallel-agents"
