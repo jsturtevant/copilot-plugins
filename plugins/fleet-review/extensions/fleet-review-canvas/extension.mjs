@@ -86,7 +86,7 @@ const session = await joinSession({
                     required: ["runId"],
                     properties: { runId: { type: "string", minLength: 1 } },
                 }, (current, input) => current.openReviewSession(input.runId)),
-                action("open_in_vscode", "Open a local review finding at its source line in VS Code.", {
+                action("open_in_vscode", "Open a local review finding as a source diff in VS Code.", {
                     type: "object",
                     additionalProperties: false,
                     required: ["runId", "findingId"],

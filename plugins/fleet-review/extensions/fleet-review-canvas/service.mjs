@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { dirname, join } from "node:path";
 import { AgentBridge } from "./bridge.mjs";
 import { getPullRequestSnapshot, listOpenPullRequests, validateRepository } from "./github.mjs";
 import { makeReviewKey, parseReviewResult } from "./schema.mjs";
@@ -255,7 +256,14 @@ export class FleetReviewService {
             });
         }
 
-        const target = await openFindingInVscode(workspacePath, finding);
-        return { opened: true, target, line: finding.lineStart };
+        const artifactRoot = join(dirname(this.store.path), "vscode");
+        const targets = await openFindingInVscode(
+            workspacePath,
+            artifactRoot,
+            `${runId}\0${finding.id}`,
+            run.report.pr.headSha,
+            finding,
+        );
+        return { opened: true, ...targets, line: finding.lineStart };
     }
 }

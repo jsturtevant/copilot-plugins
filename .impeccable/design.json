@@ -137,7 +137,7 @@
       "name": "Secondary Button",
       "kind": "button",
       "refersTo": "button-secondary",
-      "description": "Supports loading, refreshing, and session navigation.",
+      "description": "Supports loading, refreshing, session navigation, and opening a local source diff.",
       "html": "<button class=\"ds-button-secondary\" type=\"button\">Refresh status</button>",
       "css": ".ds-button-secondary { min-height: 34px; padding: 6px 12px; border: 1px solid var(--border-color-default, #d0d7de); border-radius: 6px; background: var(--background-color-default, #fff); color: var(--text-color-default, #1f2328); font: 600 14px/20px var(--font-sans, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif); cursor: pointer; } .ds-button-secondary:hover { background: var(--background-color-muted, #f6f8fa); } .ds-button-secondary:focus-visible { outline: 2px solid var(--color-focus-outline, #0969da); outline-offset: 2px; }"
     },
