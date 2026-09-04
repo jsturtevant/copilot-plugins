@@ -1,0 +1,250 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-04T10:44:20.527-07:00",
+  "title": "Design System: Fleet Review",
+  "extensions": {
+    "colorMeta": {
+      "action-blue": {
+        "role": "primary",
+        "displayName": "Action Blue",
+        "canonical": "#0969da",
+        "tonalRamp": ["oklch(22% 0.10 252)", "oklch(32% 0.13 252)", "oklch(42% 0.16 252)", "oklch(52% 0.18 252)", "oklch(62% 0.16 252)", "oklch(73% 0.12 252)", "oklch(84% 0.07 252)", "oklch(95% 0.025 252)"]
+      },
+      "critical-red": {
+        "role": "semantic",
+        "displayName": "Critical Red",
+        "canonical": "#cf222e",
+        "tonalRamp": ["oklch(20% 0.10 25)", "oklch(30% 0.14 25)", "oklch(42% 0.18 25)", "oklch(54% 0.20 25)", "oklch(64% 0.16 25)", "oklch(74% 0.11 25)", "oklch(85% 0.06 25)", "oklch(95% 0.025 25)"]
+      },
+      "critical-wash": {
+        "role": "semantic",
+        "displayName": "Critical Wash",
+        "canonical": "#ffebe9",
+        "tonalRamp": ["oklch(20% 0.05 25)", "oklch(31% 0.06 25)", "oklch(43% 0.07 25)", "oklch(55% 0.07 25)", "oklch(67% 0.06 25)", "oklch(78% 0.05 25)", "oklch(88% 0.035 25)", "oklch(96% 0.018 25)"]
+      },
+      "warning-amber": {
+        "role": "semantic",
+        "displayName": "Warning Amber",
+        "canonical": "#9a6700",
+        "tonalRamp": ["oklch(20% 0.07 75)", "oklch(31% 0.10 75)", "oklch(43% 0.12 75)", "oklch(55% 0.13 75)", "oklch(66% 0.11 75)", "oklch(77% 0.08 75)", "oklch(87% 0.05 75)", "oklch(96% 0.02 75)"]
+      },
+      "warning-wash": {
+        "role": "semantic",
+        "displayName": "Warning Wash",
+        "canonical": "#fff8c5",
+        "tonalRamp": ["oklch(20% 0.04 95)", "oklch(31% 0.055 95)", "oklch(43% 0.065 95)", "oklch(55% 0.07 95)", "oklch(67% 0.06 95)", "oklch(78% 0.05 95)", "oklch(88% 0.04 95)", "oklch(96% 0.025 95)"]
+      },
+      "success-green": {
+        "role": "semantic",
+        "displayName": "Success Green",
+        "canonical": "#1a7f37",
+        "tonalRamp": ["oklch(20% 0.07 145)", "oklch(31% 0.10 145)", "oklch(43% 0.13 145)", "oklch(55% 0.14 145)", "oklch(66% 0.12 145)", "oklch(77% 0.09 145)", "oklch(87% 0.05 145)", "oklch(96% 0.02 145)"]
+      },
+      "success-wash": {
+        "role": "semantic",
+        "displayName": "Success Wash",
+        "canonical": "#dafbe1",
+        "tonalRamp": ["oklch(20% 0.04 145)", "oklch(31% 0.055 145)", "oklch(43% 0.065 145)", "oklch(55% 0.07 145)", "oklch(67% 0.06 145)", "oklch(78% 0.05 145)", "oklch(88% 0.035 145)", "oklch(96% 0.018 145)"]
+      },
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Canvas",
+        "canonical": "#ffffff",
+        "tonalRamp": ["#1f2328", "#32383f", "#4b535c", "#6e7781", "#8c959f", "#afb8c1", "#d8dee4", "#ffffff"]
+      },
+      "canvas-subtle": {
+        "role": "neutral",
+        "displayName": "Subtle Canvas",
+        "canonical": "#f6f8fa",
+        "tonalRamp": ["#1f2328", "#32383f", "#4b535c", "#6e7781", "#8c959f", "#afb8c1", "#d8dee4", "#f6f8fa"]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#1f2328",
+        "tonalRamp": ["#1f2328", "#32383f", "#4b535c", "#6e7781", "#8c959f", "#afb8c1", "#d8dee4", "#f6f8fa"]
+      },
+      "ink-muted": {
+        "role": "neutral",
+        "displayName": "Muted Ink",
+        "canonical": "#59636e",
+        "tonalRamp": ["#20252a", "#343b42", "#48515a", "#59636e", "#77818b", "#9ca5ae", "#c5cbd1", "#f3f5f7"]
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Rule",
+        "canonical": "#d0d7de",
+        "tonalRamp": ["#20252a", "#343b42", "#4b535c", "#6e7781", "#8c959f", "#afb8c1", "#d0d7de", "#f6f8fa"]
+      },
+      "rule-muted": {
+        "role": "neutral",
+        "displayName": "Muted Rule",
+        "canonical": "#d8dee4",
+        "tonalRamp": ["#20252a", "#343b42", "#4b535c", "#6e7781", "#8c959f", "#afb8c1", "#d8dee4", "#f6f8fa"]
+      }
+    },
+    "typographyMeta": {
+      "title": {
+        "displayName": "Product Title",
+        "purpose": "The Fleet Review product heading."
+      },
+      "section-title": {
+        "displayName": "Section Title",
+        "purpose": "Launch, report, review, and finding headings."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Primary explanatory and report copy."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Controls, badges, tabs, and compact metadata."
+      },
+      "code": {
+        "displayName": "Code",
+        "purpose": "Source locations, line numbers, and code evidence."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "skeleton-shimmer",
+        "value": "1.4s linear infinite",
+        "purpose": "Moves the loading sheen across skeleton content; disabled for reduced motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "compact-controls",
+        "value": "900px"
+      },
+      {
+        "name": "stacked-review",
+        "value": "700px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Starts the selected pull request review.",
+      "html": "<button class=\"ds-button-primary\" type=\"button\">Run review</button>",
+      "css": ".ds-button-primary { min-height: 34px; padding: 6px 12px; border: 1px solid var(--true-color-blue, #0969da); border-radius: 6px; background: var(--true-color-blue, #0969da); color: var(--color-white, #fff); font: 600 14px/20px var(--font-sans, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif); cursor: pointer; } .ds-button-primary:hover { filter: brightness(.93); } .ds-button-primary:focus-visible { outline: 2px solid var(--color-focus-outline, #0969da); outline-offset: 2px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Supports loading, refreshing, session navigation, and opening a local source diff.",
+      "html": "<button class=\"ds-button-secondary\" type=\"button\">Refresh status</button>",
+      "css": ".ds-button-secondary { min-height: 34px; padding: 6px 12px; border: 1px solid var(--border-color-default, #d0d7de); border-radius: 6px; background: var(--background-color-default, #fff); color: var(--text-color-default, #1f2328); font: 600 14px/20px var(--font-sans, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif); cursor: pointer; } .ds-button-secondary:hover { background: var(--background-color-muted, #f6f8fa); } .ds-button-secondary:focus-visible { outline: 2px solid var(--color-focus-outline, #0969da); outline-offset: 2px; }"
+    },
+    {
+      "name": "Search Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Filters findings within the inspection rail.",
+      "html": "<input class=\"ds-input\" type=\"search\" placeholder=\"Search findings\" />",
+      "css": ".ds-input { width: 100%; min-height: 34px; padding: 6px 30px 6px 9px; border: 1px solid var(--border-color-default, #d0d7de); border-radius: 6px; background: var(--background-color-default, #fff); color: var(--text-color-default, #1f2328); font: 14px/20px var(--font-sans, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif); } .ds-input:focus-visible { outline: 2px solid var(--color-focus-outline, #0969da); outline-offset: 2px; }"
+    },
+    {
+      "name": "Segmented Choice",
+      "kind": "custom",
+      "refersTo": "input",
+      "description": "Chooses local or cloud review execution.",
+      "html": "<div class=\"ds-segmented\"><button class=\"ds-segment ds-selected\" type=\"button\">Local</button><button class=\"ds-segment\" type=\"button\">Cloud</button></div>",
+      "css": ".ds-segmented { display: grid; grid-template-columns: 1fr 1fr; } .ds-segment { min-height: 34px; padding: 6px 13px; border: 1px solid var(--border-color-default, #d0d7de); background: var(--background-color-default, #fff); color: var(--text-color-default, #1f2328); font: 14px/20px var(--font-sans, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif); } .ds-segment:first-child { border-radius: 6px 0 0 6px; } .ds-segment:last-child { margin-left: -1px; border-radius: 0 6px 6px 0; } .ds-segment.ds-selected { position: relative; z-index: 1; border-color: var(--true-color-blue, #0969da); background: var(--background-color-muted, #f6f8fa); color: var(--true-color-blue, #0969da); font-weight: 600; } .ds-segment:focus-visible { outline: 2px solid var(--color-focus-outline, #0969da); outline-offset: 2px; }"
+    },
+    {
+      "name": "Severity Badge",
+      "kind": "chip",
+      "refersTo": "badge",
+      "description": "Labels a finding's severity with redundant text and color.",
+      "html": "<span class=\"ds-severity-critical\">critical</span>",
+      "css": ".ds-severity-critical { display: inline-flex; align-items: center; min-height: 22px; padding: 1px 7px; border: 1px solid var(--true-color-red, #cf222e); border-radius: 999px; background: var(--true-color-red-muted, #ffebe9); color: var(--true-color-red, #cf222e); font: 600 12px/20px var(--font-sans, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif); }"
+    },
+    {
+      "name": "Selected Finding Tab",
+      "kind": "nav",
+      "refersTo": "finding-tab-selected",
+      "description": "Marks the active finding in the vertical inspection index.",
+      "html": "<button class=\"ds-finding-tab\" type=\"button\"><span class=\"ds-severity-dot\"></span><span>Unchecked length permits oversized payload</span></button>",
+      "css": ".ds-finding-tab { width: 100%; min-height: 38px; display: grid; grid-template-columns: 9px minmax(0,1fr); gap: 8px; align-items: start; padding: 8px 11px; border: 0; border-bottom: 1px solid var(--border-color-muted, #d8dee4); border-radius: 0; background: var(--background-color-default, #fff); color: var(--text-color-default, #1f2328); box-shadow: inset 3px 0 0 var(--true-color-blue, #0969da); font: 600 12px/20px var(--font-sans, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif); text-align: left; } .ds-finding-tab:hover { background: var(--background-color-muted, #f6f8fa); } .ds-finding-tab:focus-visible { outline: 2px solid var(--color-focus-outline, #0969da); outline-offset: 2px; } .ds-severity-dot { width: 7px; height: 7px; margin-top: 6px; border-radius: 50%; background: var(--true-color-red, #cf222e); }"
+    },
+    {
+      "name": "Code Evidence Pane",
+      "kind": "custom",
+      "description": "Frames neutral reviewed source beside a line-level proposed diff with explicit old and new line numbers.",
+      "html": "<section class=\"ds-code-pane\"><header><strong>Proposed diff</strong></header><pre><span class=\"ds-diff-removed\"><span>42</span><span></span><span>-</span><span>const limit = request.limit;</span></span><span class=\"ds-diff-added\"><span></span><span>42</span><span>+</span><span>const limit = validate(request.limit);</span></span></pre></section>",
+      "css": ".ds-code-pane { min-width: 0; border: 1px solid var(--border-color-default, #d0d7de); background: var(--background-color-muted, #f6f8fa); color: var(--text-color-default, #1f2328); } .ds-code-pane header { min-height: 36px; display: flex; align-items: center; padding: 7px 10px; border-bottom: 1px solid var(--border-color-default, #d0d7de); font: 600 14px/20px var(--font-sans, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif); } .ds-code-pane pre { margin: 0; padding: 9px 0; overflow: auto; font: 12px/19px var(--font-mono, \"SFMono-Regular\", Consolas, monospace); } .ds-diff-removed, .ds-diff-added { display: grid; grid-template-columns: 42px 42px 22px minmax(max-content,1fr); min-height: 19px; } .ds-diff-removed { background: var(--true-color-red-muted, #ffebe9); } .ds-diff-added { background: var(--true-color-green-muted, #dafbe1); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Inspection Ledger",
+    "overview": "Fleet Review is a dense, restrained work surface modeled on a precise inspection record rather than a decorative analytics dashboard. Native system typography, thin rules, quiet planes, and a single blue interaction accent keep attention on repository evidence and review state.\n\nThe system is deliberately flat and code-first. Severity color carries meaning in compact badges, dots, warning fields, and code washes; it never becomes atmosphere. Host-provided Copilot tokens may replace the documented fallbacks so the canvas remains visually native in light and dark environments.",
+    "keyCharacteristics": [
+      "Compact controls and short, scannable labels.",
+      "Flat white and muted planes divided by one-pixel rules.",
+      "Blue reserved for action, selection, and keyboard focus.",
+      "Severity communicated redundantly through text, color, and grouping.",
+      "Monospaced locations and side-by-side reviewed/proposed code."
+    ],
+    "rules": [
+      {
+        "name": "The Evidence Color Rule",
+        "body": "Semantic color identifies review evidence or state; it does not decorate neutral workspace chrome.",
+        "section": "colors"
+      },
+      {
+        "name": "The Host-Native Rule",
+        "body": "Prefer the host's matching color tokens when available and retain the documented palette as the fallback.",
+        "section": "colors"
+      },
+      {
+        "name": "The Shallow Hierarchy Rule",
+        "body": "Create hierarchy with weight, spacing, and context before introducing another font size.",
+        "section": "typography"
+      },
+      {
+        "name": "The Code-Is-Evidence Rule",
+        "body": "Use monospace for file locations and source only, never as a decorative product voice.",
+        "section": "typography"
+      },
+      {
+        "name": "The Evidence-First Grid Rule",
+        "body": "Keep the index narrow and give the fluid column to findings, reports, and code.",
+        "section": "layout"
+      },
+      {
+        "name": "The Narrow Stack Rule",
+        "body": "On small screens, preserve reading order by stacking navigation before evidence and reviewed code before the proposed fix.",
+        "section": "layout"
+      },
+      {
+        "name": "The Flat Ledger Rule",
+        "body": "Separate regions with rules and tonal planes; do not introduce floating cards or ambient shadow.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Functional Curve Rule",
+        "body": "Use 6px curves for discrete controls and messages, pills for compact status, and square joins for continuous data structures.",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "Do keep code, file location, finding copy, and traceability metadata visually dominant.",
+      "Do use one-pixel rules and subtle canvas shifts to organize dense information.",
+      "Do pair every severity color with a text label, grouping label, or explicit status.",
+      "Do preserve visible keyboard focus and the reduced-motion skeleton behavior.",
+      "Do let host tokens override fallbacks so the canvas follows its Copilot environment."
+    ],
+    "donts": [
+      "Don't add decorative metrics, gradients, illustrations, or floating dashboard cards.",
+      "Don't use semantic colors for ordinary actions or neutral navigation.",
+      "Don't wrap source code to force it into narrow panes; stack panes and retain horizontal scrolling.",
+      "Don't introduce shadows where a rule or tonal plane already communicates structure."
+    ]
+  }
+}

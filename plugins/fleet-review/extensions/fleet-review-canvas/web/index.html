@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fleet Review</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <!--
+      THESIS: A review is an inspection record, not a dashboard of decorative metrics.
+      OWN-WORLD: Copilot-native planes, precise rules, restrained blue focus, semantic severity.
+      STORY: Choose a PR, dispatch the fleet, inspect evidence, trace the source session.
+      FIRST VIEWPORT: Compact launch controls above a split review rail and evidence workspace.
+      FORM: Dense Operate surface; familiar tabs become a severity-grouped inspection index. User-pinned native direction; no concept roll.
+    -->
+    <header class="app-header">
+      <div>
+        <h1>Fleet Review</h1>
+        <p>Multi-agent pull request inspection</p>
+      </div>
+      <span class="read-only-badge">Review-only</span>
+    </header>
+
+    <main>
+      <section class="launcher" aria-labelledby="launch-title">
+        <div class="section-heading">
+          <div>
+            <h2 id="launch-title">Start a review</h2>
+            <p>Select a configured repository and an open pull request.</p>
+          </div>
+          <button id="refresh-projects" class="button secondary" type="button">Load projects</button>
+        </div>
+
+        <div class="launch-grid">
+          <label>
+            <span>Repository</span>
+            <select id="project-select" disabled>
+              <option value="">Load configured projects</option>
+            </select>
+          </label>
+          <label>
+            <span>Pull request</span>
+            <select id="pr-select" disabled>
+              <option value="">Select a repository first</option>
+            </select>
+          </label>
+          <fieldset>
+            <legend>Run in</legend>
+            <div class="segmented">
+              <label><input type="radio" name="execution" value="local" checked /><span>Local</span></label>
+              <label><input type="radio" name="execution" value="cloud" /><span>Cloud</span></label>
+            </div>
+          </fieldset>
+          <button id="run-review" class="button primary" type="button" disabled>Run review</button>
+        </div>
+        <p id="launch-status" class="status-line" role="status" aria-live="polite"></p>
+      </section>
+
+      <section id="recent-reviews" class="recent-reviews" aria-labelledby="recent-title" hidden>
+        <div class="recent-heading">
+          <div>
+            <h2 id="recent-title">Recent reviews</h2>
+            <p>Reopen a persisted review from any configured repository.</p>
+          </div>
+          <span id="recent-count" class="recent-count"></span>
+        </div>
+        <div id="recent-review-list" class="recent-review-list" role="list"></div>
+      </section>
+
+      <section id="empty-state" class="empty-state">
+        <div class="empty-mark" aria-hidden="true">FR</div>
+        <h2>Evidence arrives here</h2>
+        <p>Load projects, choose a pull request, and dispatch six complementary reviewers.</p>
+      </section>
+
+      <section id="review-workspace" class="review-workspace" hidden>
+        <header class="review-header">
+          <div>
+            <div class="review-title-line">
+              <h2 id="review-title">Review</h2>
+              <span id="review-state-badge" class="state-badge"></span>
+            </div>
+            <p id="review-meta"></p>
+          </div>
+          <div class="review-actions">
+            <label>
+              <span>Run history</span>
+              <select id="history-select"></select>
+            </label>
+            <button id="reconcile-review" class="button secondary" type="button">Refresh status</button>
+            <button id="open-session" class="button secondary" type="button">Open session</button>
+          </div>
+        </header>
+
+        <div id="review-warning" class="review-warning" role="status" hidden></div>
+
+        <div class="review-body">
+          <aside class="finding-rail" aria-label="Review pages" role="tablist" aria-orientation="vertical">
+            <button id="tab-report" class="rail-tab selected" type="button" role="tab" data-tab="report" aria-selected="true" aria-controls="review-content" tabindex="0">
+              Report
+            </button>
+            <div class="finding-tools">
+              <label>
+                <span class="sr-only">Search findings</span>
+                <input id="finding-search" type="search" placeholder="Search findings" />
+              </label>
+              <label>
+                <span class="sr-only">Filter by severity</span>
+                <select id="severity-filter">
+                  <option value="all">All severities</option>
+                  <option value="critical">Critical</option>
+                  <option value="high">High</option>
+                  <option value="medium">Medium</option>
+                  <option value="low">Low</option>
+                </select>
+              </label>
+            </div>
+            <div id="finding-tabs"></div>
+          </aside>
+          <article id="review-content" class="review-content" role="tabpanel" aria-labelledby="tab-report" tabindex="0"></article>
+        </div>
+      </section>
+    </main>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>
