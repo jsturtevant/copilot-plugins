@@ -86,7 +86,7 @@ const session = await joinSession({
                     required: ["runId"],
                     properties: { runId: { type: "string", minLength: 1 } },
                 }, (current, input) => current.openReviewSession(input.runId)),
-                action("open_in_vscode", "Open the local review project with exact fixes as uncommitted changes.", {
+                action("open_in_vscode", "Open the local review project with inline finding comments.", {
                     type: "object",
                     additionalProperties: false,
                     required: ["runId", "findingId"],

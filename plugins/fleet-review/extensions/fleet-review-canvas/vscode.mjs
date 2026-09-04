@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { access, mkdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
-import { isAbsolute, join, relative, resolve, win32 } from "node:path";
+import { extname, isAbsolute, join, relative, resolve, win32 } from "node:path";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
@@ -124,6 +124,89 @@ export function buildProposedSource(source, finding) {
     return lines.join(lineEnding);
 }
 
+function commentStyle(path) {
+    const extension = extname(path).toLowerCase();
+    if (
+        [
+            ".c",
+            ".cc",
+            ".cpp",
+            ".cs",
+            ".go",
+            ".java",
+            ".js",
+            ".jsx",
+            ".kt",
+            ".kts",
+            ".m",
+            ".mm",
+            ".php",
+            ".rs",
+            ".swift",
+            ".ts",
+            ".tsx",
+        ].includes(extension)
+    ) {
+        return { prefix: "// " };
+    }
+    if (
+        [
+            ".bash",
+            ".ini",
+            ".pl",
+            ".ps1",
+            ".py",
+            ".rb",
+            ".sh",
+            ".toml",
+            ".yaml",
+            ".yml",
+        ].includes(extension)
+    ) {
+        return { prefix: "# " };
+    }
+    if ([".html", ".md", ".xml"].includes(extension)) {
+        return { prefix: "<!-- ", suffix: " -->" };
+    }
+    if ([".lua", ".sql"].includes(extension)) {
+        return { prefix: "-- " };
+    }
+    throw new Error(`Inline review comments are not supported for ${extension || "extensionless files"}`);
+}
+
+function annotationLines(finding, indentation, blankLineLabel) {
+    const style = commentStyle(finding.path);
+    const line = (text) => `${indentation}${style.prefix}${text}${style.suffix ?? ""}`;
+    const details = [
+        `FLEET REVIEW ${finding.id} [${finding.severity.toUpperCase()}]: ${finding.title}`,
+        `Problem: ${finding.problem.replace(/\s+/g, " ").trim()}`,
+        `Evidence: ${finding.evidence.replace(/\s+/g, " ").trim()}`,
+        `Suggestion (${finding.fixKind}):`,
+        ...normalizedLines(finding.suggestedCode).map((code) =>
+            code ? `  ${code}` : `  ${blankLineLabel}`,
+        ),
+    ];
+    if (finding.judgmentNotes) {
+        details.push(`Judgment: ${finding.judgmentNotes.replace(/\s+/g, " ").trim()}`);
+    }
+    return details.map(line);
+}
+
+export function buildAnnotatedSource(source, findings, blankLineLabel = "[blank line]") {
+    const lines = normalizedLines(source);
+    const ordered = [...findings].sort((left, right) => right.lineStart - left.lineStart);
+    for (const finding of ordered) {
+        const startIndex = finding.lineStart - 1;
+        if (!Number.isInteger(startIndex) || startIndex < 0 || startIndex >= lines.length) {
+            throw new Error(`${finding.id}: annotation line is outside ${finding.path}`);
+        }
+        const indentation = lines[startIndex].match(/^\s*/)?.[0] ?? "";
+        lines.splice(startIndex, 0, ...annotationLines(finding, indentation, blankLineLabel));
+    }
+    const lineEnding = source.includes("\r\n") ? "\r\n" : "\n";
+    return lines.join(lineEnding);
+}
+
 async function git(workspace, args) {
     return execFileAsync("git", ["-C", workspace, ...args], GIT_OPTIONS);
 }
@@ -149,19 +232,61 @@ export async function prepareReviewWorkspace(workspacePath, report) {
             (left, right) =>
                 left.path.localeCompare(right.path) || right.lineStart - left.lineStart,
         );
-    const files = new Map();
+    const baselineFiles = new Map();
+    const priorFixFiles = new Map();
     for (const finding of exactFindings) {
         const target = resolveFindingTarget(workspace, finding.path);
-        const source = files.has(target)
-            ? files.get(target)
+        const source = priorFixFiles.has(target)
+            ? priorFixFiles.get(target)
             : (
                   await git(workspace, [
                       "show",
                       `${report.pr.headSha}:${finding.path}`,
                   ])
               ).stdout;
-        files.set(target, buildProposedSource(source, finding));
+        baselineFiles.set(
+            target,
+            baselineFiles.get(target) ??
+                (
+                    await git(workspace, [
+                        "show",
+                        `${report.pr.headSha}:${finding.path}`,
+                    ])
+                ).stdout,
+        );
+        priorFixFiles.set(target, buildProposedSource(source, finding));
     }
+    for (const finding of report.findings.filter((candidate) => candidate.fixKind !== "exact")) {
+        const target = resolveFindingTarget(workspace, finding.path);
+        if (!baselineFiles.has(target)) {
+            baselineFiles.set(
+                target,
+                (
+                    await git(workspace, [
+                        "show",
+                        `${report.pr.headSha}:${finding.path}`,
+                    ])
+                ).stdout,
+            );
+        }
+    }
+    const findingsByTarget = new Map();
+    for (const finding of report.findings) {
+        const target = resolveFindingTarget(workspace, finding.path);
+        findingsByTarget.set(target, [...(findingsByTarget.get(target) ?? []), finding]);
+    }
+    const annotatedFiles = new Map(
+        [...findingsByTarget].map(([target, findings]) => [
+            target,
+            buildAnnotatedSource(baselineFiles.get(target), findings),
+        ]),
+    );
+    const legacyAnnotatedFiles = new Map(
+        [...findingsByTarget].map(([target, findings]) => [
+            target,
+            buildAnnotatedSource(baselineFiles.get(target), findings, ""),
+        ]),
+    );
 
     const changedPaths = (
         await git(workspace, ["diff", "--name-only", "--relative"])
@@ -170,13 +295,27 @@ export async function prepareReviewWorkspace(workspacePath, report) {
         .split("\n")
         .filter(Boolean);
     if (changedPaths.length) {
-        const expectedPaths = new Set(exactFindings.map((finding) => finding.path));
+        const expectedPaths = new Set(report.findings.map((finding) => finding.path));
         if (changedPaths.some((path) => !expectedPaths.has(path))) {
             throw new Error("The review workspace has unrelated tracked changes; refusing to overwrite them");
         }
-        for (const [target, expected] of files) {
+        const changedTargets = new Set(
+            changedPaths.map((path) => resolveFindingTarget(workspace, path)),
+        );
+        for (const [target, expected] of annotatedFiles) {
+            if (!changedTargets.has(target)) {
+                continue;
+            }
             const actual = await readFile(target, "utf8");
-            if (actual.replace(/\r\n?/g, "\n") !== expected.replace(/\r\n?/g, "\n")) {
+            const normalizedActual = actual.replace(/\r\n?/g, "\n");
+            const matchesAnnotation =
+                normalizedActual === expected.replace(/\r\n?/g, "\n");
+            const matchesPriorFix =
+                priorFixFiles.has(target) &&
+                normalizedActual === priorFixFiles.get(target).replace(/\r\n?/g, "\n");
+            const matchesLegacyAnnotation =
+                normalizedActual === legacyAnnotatedFiles.get(target).replace(/\r\n?/g, "\n");
+            if (!matchesAnnotation && !matchesPriorFix && !matchesLegacyAnnotation) {
                 throw new Error("The review workspace has edited source changes; refusing to overwrite them");
             }
         }
@@ -186,9 +325,7 @@ export async function prepareReviewWorkspace(workspacePath, report) {
     const jsonPath = join(reportDirectory, "fleet-review.json");
     await mkdir(reportDirectory, { recursive: true });
     await Promise.all([
-        ...(changedPaths.length
-            ? []
-            : [...files].map(([target, source]) => writeFile(target, source, "utf8"))),
+        ...[...annotatedFiles].map(([target, source]) => writeFile(target, source, "utf8")),
         writeFile(markdownPath, `${report.reportMarkdown.trimEnd()}\n`, "utf8"),
         writeFile(jsonPath, `${JSON.stringify(report, null, 2)}\n`, "utf8"),
     ]);
@@ -197,10 +334,7 @@ export async function prepareReviewWorkspace(workspacePath, report) {
         workspace,
         markdownPath,
         jsonPath,
-        appliedFindings: exactFindings.map((finding) => finding.id),
-        illustrativeFindings: report.findings
-            .filter((finding) => finding.fixKind === "illustrative")
-            .map((finding) => finding.id),
+        annotatedFindings: report.findings.map((finding) => finding.id),
     };
 }
 

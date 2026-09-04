@@ -6,6 +6,7 @@ import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 import test from "node:test";
 import {
+    buildAnnotatedSource,
     buildProposedSource,
     prepareReviewWorkspace,
     resolveFindingTarget,
@@ -106,6 +107,45 @@ test("matches dedented annotations and restores source indentation", () => {
     assert.equal(proposed, "impl Queue {\n    fn reclaim() {\n        fixed();\n    }\n}\n");
 });
 
+test("inserts language-aware review comments without changing executable code", () => {
+    const annotated = buildAnnotatedSource("fn main() {\n    run();\n}\n", [
+        {
+            id: "F-001",
+            severity: "high",
+            title: "Validate input",
+            problem: "Input is trusted.",
+            evidence: "The call receives external data.",
+            path: "src/main.rs",
+            lineStart: 2,
+            suggestedCode: "validate();\nrun();",
+            fixKind: "exact",
+            judgmentNotes: "",
+        },
+    ]);
+    assert.match(annotated, /    \/\/ FLEET REVIEW F-001 \[HIGH\]: Validate input/);
+    assert.match(annotated, /    \/\/   validate\(\);/);
+    assert.match(annotated, /\n    run\(\);\n/);
+});
+
+test("labels blank suggested lines without trailing whitespace", () => {
+    const annotated = buildAnnotatedSource("fn run() {}\n", [
+        {
+            id: "F-001",
+            severity: "medium",
+            title: "Add separation",
+            problem: "Statements run together.",
+            evidence: "The hunk is difficult to read.",
+            path: "src/main.rs",
+            lineStart: 1,
+            suggestedCode: "first();\n\nsecond();",
+            fixKind: "illustrative",
+            judgmentNotes: "Choose the final layout.",
+        },
+    ]);
+    assert.match(annotated, /\/\/   \[blank line\]/);
+    assert.doesNotMatch(annotated, / +$/m);
+});
+
 test("prepares the reviewed commit with exact fixes and report artifacts", async () => {
     const workspace = await mkdtemp(join(tmpdir(), "fleet-review-workspace-"));
     try {
@@ -130,21 +170,31 @@ test("prepares the reviewed commit with exact fixes and report artifacts", async
             findings: [
                 {
                     id: "F-001",
+                    severity: "high",
+                    title: "Validate input",
+                    problem: "Input is trusted.",
+                    evidence: "The value reaches a sensitive operation.",
                     path: "example.js",
                     lineStart: 1,
                     lineEnd: 1,
                     currentCode: "const value = input;",
                     suggestedCode: "const value = validate(input);",
                     fixKind: "exact",
+                    judgmentNotes: "",
                 },
                 {
                     id: "F-002",
+                    severity: "medium",
+                    title: "Choose validation",
+                    problem: "The policy is undecided.",
+                    evidence: "Multiple validation strategies are possible.",
                     path: "example.js",
                     lineStart: 1,
                     lineEnd: 1,
                     currentCode: "const value = input;",
                     suggestedCode: "choose a validation strategy",
                     fixKind: "illustrative",
+                    judgmentNotes: "Select the correct policy for this input.",
                 },
             ],
         };
@@ -154,17 +204,19 @@ test("prepares the reviewed commit with exact fixes and report artifacts", async
             (await execFileAsync("git", ["-C", workspace, "rev-parse", "HEAD"])).stdout.trim(),
             headSha,
         );
-        assert.equal(
-            (await readFile(join(workspace, "example.js"), "utf8")).replace(/\r\n/g, "\n"),
-            "const value = validate(input);\n",
+        const annotatedSource = (await readFile(join(workspace, "example.js"), "utf8")).replace(
+            /\r\n/g,
+            "\n",
         );
+        assert.match(annotatedSource, /\/\/ FLEET REVIEW F-001/);
+        assert.match(annotatedSource, /\nconst value = input;\n/);
+        assert.doesNotMatch(annotatedSource, /^const value = validate\(input\);$/m);
         assert.equal(await readFile(prepared.markdownPath, "utf8"), "# Review\n");
         assert.equal(JSON.parse(await readFile(prepared.jsonPath, "utf8")).runId, "run-1");
-        assert.deepEqual(prepared.appliedFindings, ["F-001"]);
-        assert.deepEqual(prepared.illustrativeFindings, ["F-002"]);
+        assert.deepEqual(prepared.annotatedFindings, ["F-001", "F-002"]);
 
         const reopened = await prepareReviewWorkspace(workspace, report);
-        assert.deepEqual(reopened.appliedFindings, ["F-001"]);
+        assert.deepEqual(reopened.annotatedFindings, ["F-001", "F-002"]);
     } finally {
         await rm(workspace, { recursive: true, force: true });
     }
