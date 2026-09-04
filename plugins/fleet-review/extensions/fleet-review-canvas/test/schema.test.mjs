@@ -98,6 +98,15 @@ test("requires judgment notes for illustrative fixes", () => {
     assert.throws(() => normalizeReviewReport(report([illustrative])), /judgmentNotes/);
 });
 
+test("rejects finding paths that can escape the review workspace", () => {
+    for (const path of ["../secret.txt", "/etc/passwd", "C:\\secret.txt", "src/../secret.txt"]) {
+        assert.throws(
+            () => normalizeReviewReport(report([{ ...finding(1), path }])),
+            /repository-relative path/,
+        );
+    }
+});
+
 test("parses a delimited child-session result", () => {
     const raw = report([finding(1)]);
     const parsed = parseReviewResult(`${RESULT_START}\n${JSON.stringify(raw)}\n${RESULT_END}`);

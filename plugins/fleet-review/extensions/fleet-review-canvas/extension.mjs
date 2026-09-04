@@ -86,6 +86,15 @@ const session = await joinSession({
                     required: ["runId"],
                     properties: { runId: { type: "string", minLength: 1 } },
                 }, (current, input) => current.openReviewSession(input.runId)),
+                action("open_in_vscode", "Open a local review finding at its source line in VS Code.", {
+                    type: "object",
+                    additionalProperties: false,
+                    required: ["runId", "findingId"],
+                    properties: {
+                        runId: { type: "string", minLength: 1 },
+                        findingId: { type: "string", minLength: 1 },
+                    },
+                }, (current, input) => current.openFindingInVscode(input.runId, input.findingId)),
             ],
             open: async (ctx) => {
                 requireService();

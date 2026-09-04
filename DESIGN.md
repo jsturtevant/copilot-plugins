@@ -115,9 +115,9 @@ The palette is a Copilot-native neutral foundation with one interaction blue and
 - **Action Blue:** Drives the primary action, selected-rail marker, active segmented control, focus outline, and medium-severity signal.
 
 ### Secondary
-- **Critical Red and Critical Wash:** Mark critical findings and tint reviewed code.
+- **Critical Red and Critical Wash:** Mark critical findings and removed diff lines.
 - **Warning Amber and Warning Wash:** Mark high severity, stale or incomplete review notices, and illustrative fixes.
-- **Success Green and Success Wash:** Reserve positive semantics for proposed-code treatment.
+- **Success Green and Success Wash:** Reserve positive semantics for added diff lines.
 
 ### Neutral
 - **Canvas and Subtle Canvas:** Separate the reading plane from rails, code panes, hover fills, and table headers.
@@ -200,7 +200,8 @@ Controls, notices, and code containers use gently squared 6px corners. Badges us
 
 ### Code Comparison
 - **Style:** Two equal bordered panes on a subtle canvas, each with a compact ruled header and horizontally scrollable monospace lines.
-- **Evidence Treatment:** Reviewed lines receive a restrained critical wash; proposed lines receive a restrained success wash.
+- **Evidence Treatment:** Reviewed code stays neutral. The proposed pane is a line-level diff with old and new line numbers, explicit minus/plus prefixes, restrained red removal rows, and restrained green addition rows.
+- **Source Launch:** Local review findings expose a compact secondary action that opens the child worktree and exact source line in a new VS Code window. Cloud findings retain the disabled control with an explicit reason.
 - **Responsive:** Panes stack below 700px without changing their reviewed-then-proposed order.
 
 ### Status Notices

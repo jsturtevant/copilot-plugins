@@ -29,6 +29,19 @@ function optionalString(value, fallback = "") {
     return typeof value === "string" ? value : fallback;
 }
 
+function repositoryRelativePath(value, field) {
+    const path = requiredString(value, field);
+    if (
+        path.includes("\\") ||
+        path.startsWith("/") ||
+        /^[A-Za-z]:/.test(path) ||
+        path.split("/").some((segment) => segment === "" || segment === "." || segment === "..")
+    ) {
+        throw new Error(`${field} must be a normalized repository-relative path`);
+    }
+    return path;
+}
+
 function integer(value, field, minimum = 0) {
     if (!Number.isInteger(value) || value < minimum) {
         throw new Error(`${field} must be an integer greater than or equal to ${minimum}`);
@@ -77,7 +90,7 @@ function normalizeFinding(finding, index) {
         title: requiredString(finding.title, `findings[${index}].title`),
         problem: requiredString(finding.problem, `findings[${index}].problem`),
         evidence: requiredString(finding.evidence, `findings[${index}].evidence`),
-        path: requiredString(finding.path, `findings[${index}].path`),
+        path: repositoryRelativePath(finding.path, `findings[${index}].path`),
         lineStart,
         lineEnd,
         currentCode: requiredString(finding.currentCode, `findings[${index}].currentCode`),

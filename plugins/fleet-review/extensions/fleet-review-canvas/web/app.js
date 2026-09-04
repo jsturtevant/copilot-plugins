@@ -1,3 +1,5 @@
+import { buildLineDiff } from "./diff.js";
+
 const token = new URLSearchParams(window.location.search).get("token");
 const apiUrl = (path) => `${path}?token=${encodeURIComponent(token ?? "")}`;
 
@@ -273,7 +275,63 @@ function codePane(title, code, startLine, className, badge) {
     ]);
 }
 
+function diffPane(finding, badge) {
+    const lines = buildLineDiff(finding.currentCode, finding.suggestedCode);
+    const pre = element(
+        "pre",
+        { className: "line-diff", "aria-label": "Proposed line diff with removals and additions" },
+        lines.map((line) =>
+            element("span", { className: `diff-line ${line.type}` }, [
+                element("span", {
+                    className: "line-number old-line",
+                    text: line.oldLine === null ? "" : String(finding.lineStart + line.oldLine - 1),
+                }),
+                element("span", {
+                    className: "line-number new-line",
+                    text: line.newLine === null ? "" : String(finding.lineStart + line.newLine - 1),
+                }),
+                element("span", {
+                    className: "diff-prefix",
+                    text: line.type === "added" ? "+" : line.type === "removed" ? "-" : " ",
+                }),
+                element("span", { className: "line-text", text: line.text || " " }),
+            ]),
+        ),
+    );
+    return element("section", { className: "code-pane proposed-diff" }, [
+        element("header", {}, [element("h3", { text: "Proposed diff" }), badge]),
+        pre,
+    ]);
+}
+
 function appendFinding(finding) {
+    const run = selectedRun();
+    const openInVscode = element("button", {
+        className: "button secondary vscode-button",
+        type: "button",
+        text: "Open in VS Code",
+    });
+    openInVscode.disabled = run?.executionLocation !== "local";
+    if (openInVscode.disabled) {
+        openInVscode.title = "VS Code launch is available for local review sessions.";
+        openInVscode.setAttribute(
+            "aria-label",
+            "Open in VS Code unavailable because this review ran in the cloud",
+        );
+    } else {
+        openInVscode.addEventListener("click", async () => {
+            openInVscode.disabled = true;
+            openInVscode.textContent = "Opening…";
+            try {
+                await request("/api/open-vscode", { runId: run.runId, findingId: finding.id });
+                openInVscode.textContent = "Opened in VS Code";
+            } catch (error) {
+                openInVscode.disabled = false;
+                openInVscode.textContent = "Open in VS Code";
+                setStatus(error.message, true);
+            }
+        });
+    }
     const header = element("div", { className: "finding-heading" }, [
         element("div", {}, [
             element("h2", { text: finding.title }),
@@ -282,7 +340,10 @@ function appendFinding(finding) {
                 text: `${finding.path}:${finding.lineStart}-${finding.lineEnd}`,
             }),
         ]),
-        element("span", { className: `severity ${finding.severity}`, text: finding.severity }),
+        element("div", { className: "finding-heading-actions" }, [
+            openInVscode,
+            element("span", { className: `severity ${finding.severity}`, text: finding.severity }),
+        ]),
     ]);
     const copy = element("div", { className: "finding-copy" }, [
         element("h3", { text: "Problem" }),
@@ -296,7 +357,7 @@ function appendFinding(finding) {
     });
     const comparison = element("div", { className: "code-compare" }, [
         codePane("Reviewed code", finding.currentCode, finding.lineStart, "current"),
-        codePane("Proposed fix", finding.suggestedCode, finding.lineStart, "suggested", fixBadge),
+        diffPane(finding, fixBadge),
     ]);
     const nodes = [header, copy, comparison];
     if (finding.fixKind === "illustrative") {

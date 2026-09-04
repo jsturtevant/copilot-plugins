@@ -461,6 +461,20 @@ fieldset {
   font-size: var(--text-code-inline, 12px);
 }
 
+.finding-heading-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.vscode-button {
+  min-height: 30px;
+  padding-block: 4px;
+  font-size: var(--text-caption, 12px);
+}
+
 .count-strip {
   display: grid;
   grid-template-columns: repeat(4, minmax(80px, 1fr));
@@ -581,11 +595,48 @@ fieldset {
 }
 
 .current .code-line {
-  background: color-mix(in srgb, var(--critical-muted) 45%, transparent);
+  background: var(--surface-subtle);
 }
 
-.suggested .code-line {
-  background: color-mix(in srgb, var(--success-muted) 45%, transparent);
+.line-diff .diff-line {
+  display: grid;
+  grid-template-columns: 42px 42px 22px minmax(max-content, 1fr);
+  min-height: 19px;
+}
+
+.line-diff .line-number {
+  padding-inline: 7px;
+}
+
+.line-diff .old-line {
+  border-right: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+}
+
+.diff-prefix {
+  text-align: center;
+  user-select: none;
+}
+
+.diff-line.removed {
+  background: color-mix(in srgb, var(--critical-muted) 78%, transparent);
+}
+
+.diff-line.removed .diff-prefix {
+  color: var(--critical);
+  font-weight: var(--font-weight-semibold, 600);
+}
+
+.diff-line.added {
+  background: color-mix(in srgb, var(--success-muted) 82%, transparent);
+}
+
+.diff-line.added .diff-prefix {
+  color: var(--success);
+  font-weight: var(--font-weight-semibold, 600);
+}
+
+.diff-line.context {
+  background: var(--surface-subtle);
 }
 
 .fix-kind.illustrative {

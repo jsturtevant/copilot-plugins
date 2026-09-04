@@ -23,3 +23,32 @@ test("serves the canvas and protects state with a capability token", async () =>
         await entry.close();
     }
 });
+
+test("serves the diff module and routes authenticated VS Code launches", async () => {
+    const calls = [];
+    const store = { subscribe: () => () => {} };
+    const service = {
+        getState: async () => ({}),
+        openFindingInVscode: async (...args) => {
+            calls.push(args);
+            return { opened: true };
+        },
+    };
+    const entry = await startCanvasServer(service, store);
+    try {
+        const url = new URL(entry.url);
+        const diff = await fetch(new URL("/diff.js", url));
+        assert.equal(diff.status, 200);
+        assert.match(await diff.text(), /buildLineDiff/);
+
+        const response = await fetch(new URL(`/api/open-vscode${url.search}`, url), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ runId: "run-1", findingId: "F-001" }),
+        });
+        assert.equal(response.status, 200);
+        assert.deepEqual(calls, [["run-1", "F-001"]]);
+    } finally {
+        await entry.close();
+    }
+});

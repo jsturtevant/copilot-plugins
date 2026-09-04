@@ -6,6 +6,7 @@ const BODY_LIMIT = 64 * 1024;
 const contentTypes = {
     "/": "text/html; charset=utf-8",
     "/app.js": "text/javascript; charset=utf-8",
+    "/diff.js": "text/javascript; charset=utf-8",
     "/styles.css": "text/css; charset=utf-8",
 };
 
@@ -120,6 +121,9 @@ export async function startCanvasServer(service, store) {
                     break;
                 case "/api/open-session":
                     result = await service.openReviewSession(body.runId);
+                    break;
+                case "/api/open-vscode":
+                    result = await service.openFindingInVscode(body.runId, body.findingId);
                     break;
                 default:
                     sendJson(response, 404, { error: "Not found" });

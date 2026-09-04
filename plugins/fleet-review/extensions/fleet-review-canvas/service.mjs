@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { AgentBridge } from "./bridge.mjs";
 import { getPullRequestSnapshot, listOpenPullRequests, validateRepository } from "./github.mjs";
 import { makeReviewKey, parseReviewResult } from "./schema.mjs";
+import { openFindingInVscode } from "./vscode.mjs";
 
 function normalizeProjects(payload) {
     if (!payload || !Array.isArray(payload.projects)) {
@@ -223,5 +224,38 @@ export class FleetReviewService {
         }
         await this.bridge.openSession(run.projectSessionId);
         return { projectSessionId: run.projectSessionId, navigated: true };
+    }
+
+    async openFindingInVscode(runId, findingId) {
+        const state = await this.store.load();
+        const run = findRun(state, runId);
+        if (!run?.projectSessionId || !run.report) {
+            throw new Error("This finding does not have a completed review session");
+        }
+        if (run.executionLocation !== "local") {
+            throw new Error("Cloud review files cannot be opened in local VS Code");
+        }
+        const finding = run.report.findings.find((candidate) => candidate.id === findingId);
+        if (!finding) {
+            throw new Error(`Unknown finding ${findingId}`);
+        }
+
+        let workspacePath = run.workspacePath;
+        if (!workspacePath) {
+            const resolved = await this.bridge.resolveSessionWorkspace(run.projectSessionId);
+            if (typeof resolved.workspacePath !== "string" || !resolved.workspacePath) {
+                throw new Error("The review session does not expose a local workspace path");
+            }
+            workspacePath = resolved.workspacePath;
+            await this.store.update((draft) => {
+                const current = findRun(draft, runId);
+                if (current) {
+                    current.workspacePath = workspacePath;
+                }
+            });
+        }
+
+        const target = await openFindingInVscode(workspacePath, finding);
+        return { opened: true, target, line: finding.lineStart };
     }
 }

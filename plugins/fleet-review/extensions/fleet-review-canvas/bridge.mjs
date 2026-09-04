@@ -166,6 +166,15 @@ ${bridgeReplyInstruction({
 })}`);
     }
 
+    resolveSessionWorkspace(projectSessionId) {
+        return this.request(`Use the app-native get_session tool exactly once for project session ${JSON.stringify(projectSessionId)}. This is read-only. Return its absolute filesystem workspace path. If the session has no local workspace, return an empty string. Do not mutate or navigate.
+
+${bridgeReplyInstruction({
+    projectSessionId,
+    workspacePath: "absolute local workspace path or empty string",
+})}`);
+    }
+
     openSession(projectSessionId) {
         return this.request(`Use the app-native navigate_to tool exactly once with id ${JSON.stringify(projectSessionId)}. Do not perform any other action.
 
