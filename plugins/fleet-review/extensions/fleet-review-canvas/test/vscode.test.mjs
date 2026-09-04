@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
+import { EventEmitter } from "node:events";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -8,6 +9,7 @@ import test from "node:test";
 import {
     buildAnnotatedSource,
     buildProposedSource,
+    launchVscode,
     prepareReviewWorkspace,
     resolveFindingTarget,
     vscodeExecutableCandidates,
@@ -39,6 +41,45 @@ test("resolves the native Windows executable without a command shell", () => {
         "C:\\Users\\test\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe",
     );
     assert.ok(candidates.includes("C:\\Tools\\Microsoft VS Code\\Code.exe"));
+});
+
+test("detaches VS Code after the application process starts", async () => {
+    const child = new EventEmitter();
+    let invocation;
+    let unrefCalled = false;
+    child.unref = () => {
+        unrefCalled = true;
+    };
+
+    const launched = launchVscode("Code.exe", "C:\\review-worktree", (...args) => {
+        invocation = args;
+        queueMicrotask(() => child.emit("spawn"));
+        return child;
+    });
+    await launched;
+
+    assert.deepEqual(invocation, [
+        "Code.exe",
+        ["--new-window", "C:\\review-worktree"],
+        {
+            detached: true,
+            stdio: "ignore",
+            windowsHide: true,
+        },
+    ]);
+    assert.equal(unrefCalled, true);
+});
+
+test("reports a VS Code process launch failure", async () => {
+    const child = new EventEmitter();
+    child.unref = () => {};
+
+    const launched = launchVscode("Code.exe", "C:\\review-worktree", () => {
+        queueMicrotask(() => child.emit("error", new Error("spawn failed")));
+        return child;
+    });
+
+    await assert.rejects(() => launched, /spawn failed/);
 });
 
 test("materializes a full proposed file from the reviewed line range", () => {

@@ -1,4 +1,4 @@
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { access, mkdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
 import { extname, isAbsolute, join, relative, resolve, win32 } from "node:path";
 import { promisify } from "node:util";
@@ -257,6 +257,19 @@ async function git(workspace, args) {
     return execFileAsync("git", ["-C", workspace, ...args], GIT_OPTIONS);
 }
 
+export async function launchVscode(executable, workspace, spawnProcess = spawn) {
+    const child = spawnProcess(executable, ["--new-window", workspace], {
+        detached: true,
+        stdio: "ignore",
+        windowsHide: true,
+    });
+    await new Promise((resolve, reject) => {
+        child.once("error", reject);
+        child.once("spawn", resolve);
+    });
+    child.unref();
+}
+
 export async function prepareReviewWorkspace(
     workspacePath,
     report,
@@ -399,6 +412,6 @@ export async function openReviewProjectInVscode(
         previousAppliedFindingIds,
     );
     const executable = await findVscodeExecutable();
-    await execFileAsync(executable, ["--new-window", prepared.workspace], { windowsHide: true });
+    await launchVscode(executable, prepared.workspace);
     return prepared;
 }
