@@ -25,7 +25,15 @@ function completedRun(executionLocation) {
         projectSessionId: "session-1",
         executionLocation,
         report: {
-            findings: [{ id: "F-001", path: "src/example.js", lineStart: 10 }],
+            findings: [
+                { id: "F-001", path: "src/example.js", lineStart: 10, fixKind: "exact" },
+                {
+                    id: "F-002",
+                    path: "src/example.js",
+                    lineStart: 20,
+                    fixKind: "illustrative",
+                },
+            ],
         },
     };
 }
@@ -44,5 +52,13 @@ test("requires a local workspace path before launching VS Code", async () => {
     await assert.rejects(
         () => service.openFindingInVscode("run-1", "F-001"),
         /does not expose a local workspace path/,
+    );
+});
+
+test("refuses to apply illustrative suggestions", async () => {
+    const service = serviceForRun(completedRun("local"));
+    await assert.rejects(
+        () => service.applyFindingDiff("run-1", "F-002"),
+        /require human judgment/,
     );
 });

@@ -95,6 +95,15 @@ const session = await joinSession({
                         findingId: { type: "string", minLength: 1 },
                     },
                 }, (current, input) => current.openFindingInVscode(input.runId, input.findingId)),
+                action("apply_diff", "Apply an exact finding suggestion to the annotated local review project.", {
+                    type: "object",
+                    additionalProperties: false,
+                    required: ["runId", "findingId"],
+                    properties: {
+                        runId: { type: "string", minLength: 1 },
+                        findingId: { type: "string", minLength: 1 },
+                    },
+                }, (current, input) => current.applyFindingDiff(input.runId, input.findingId)),
             ],
             open: async (ctx) => {
                 requireService();

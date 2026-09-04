@@ -33,6 +33,10 @@ test("serves the diff module and routes authenticated VS Code launches", async (
             calls.push(args);
             return { opened: true };
         },
+        applyFindingDiff: async (...args) => {
+            calls.push(["apply", ...args]);
+            return { applied: true };
+        },
     };
     const entry = await startCanvasServer(service, store);
     try {
@@ -48,6 +52,14 @@ test("serves the diff module and routes authenticated VS Code launches", async (
         });
         assert.equal(response.status, 200);
         assert.deepEqual(calls, [["run-1", "F-001"]]);
+
+        const applyResponse = await fetch(new URL(`/api/apply-diff${url.search}`, url), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ runId: "run-1", findingId: "F-001" }),
+        });
+        assert.equal(applyResponse.status, 200);
+        assert.deepEqual(calls[1], ["apply", "run-1", "F-001"]);
     } finally {
         await entry.close();
     }

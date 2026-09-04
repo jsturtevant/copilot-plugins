@@ -122,12 +122,12 @@ test("inserts language-aware review comments without changing executable code", 
             judgmentNotes: "",
         },
     ]);
-    assert.match(annotated, /    \/\/ FLEET REVIEW F-001 \[HIGH\]: Validate input/);
-    assert.match(annotated, /    \/\/   validate\(\);/);
+    assert.match(annotated, /    \/\/ REVIEW ISSUE #1 \[HIGH\]: Validate input/);
+    assert.doesNotMatch(annotated, /Problem:|Evidence:|Suggestion:/);
     assert.match(annotated, /\n    run\(\);\n/);
 });
 
-test("labels blank suggested lines without trailing whitespace", () => {
+test("keeps suggestion details out of the canonical source marker", () => {
     const annotated = buildAnnotatedSource("fn run() {}\n", [
         {
             id: "F-001",
@@ -142,11 +142,14 @@ test("labels blank suggested lines without trailing whitespace", () => {
             judgmentNotes: "Choose the final layout.",
         },
     ]);
-    assert.match(annotated, /\/\/   \[blank line\]/);
+    assert.equal(
+        annotated.split("\n")[0],
+        "// REVIEW ISSUE #1 [MEDIUM]: Add separation",
+    );
     assert.doesNotMatch(annotated, / +$/m);
 });
 
-test("prepares the reviewed commit with exact fixes and report artifacts", async () => {
+test("prepares canonical annotations, applied diffs, and report artifacts", async () => {
     const workspace = await mkdtemp(join(tmpdir(), "fleet-review-workspace-"));
     try {
         await execFileAsync("git", ["-C", workspace, "init", "--quiet"]);
@@ -208,7 +211,7 @@ test("prepares the reviewed commit with exact fixes and report artifacts", async
             /\r\n/g,
             "\n",
         );
-        assert.match(annotatedSource, /\/\/ FLEET REVIEW F-001/);
+        assert.match(annotatedSource, /\/\/ REVIEW ISSUE #1 \[HIGH\]: Validate input/);
         assert.match(annotatedSource, /\nconst value = input;\n/);
         assert.doesNotMatch(annotatedSource, /^const value = validate\(input\);$/m);
         assert.equal(await readFile(prepared.markdownPath, "utf8"), "# Review\n");
@@ -217,6 +220,24 @@ test("prepares the reviewed commit with exact fixes and report artifacts", async
 
         const reopened = await prepareReviewWorkspace(workspace, report);
         assert.deepEqual(reopened.annotatedFindings, ["F-001", "F-002"]);
+
+        const applied = await prepareReviewWorkspace(workspace, report, ["F-001"], []);
+        const appliedSource = (await readFile(join(workspace, "example.js"), "utf8")).replace(
+            /\r\n/g,
+            "\n",
+        );
+        assert.doesNotMatch(appliedSource, /REVIEW ISSUE #1/);
+        assert.match(appliedSource, /REVIEW ISSUE #2 \[MEDIUM\]/);
+        assert.match(appliedSource, /const value = validate\(input\);/);
+        assert.deepEqual(applied.appliedFindings, ["F-001"]);
+        assert.deepEqual(applied.annotatedFindings, ["F-002"]);
+
+        const reopenedApplied = await prepareReviewWorkspace(
+            workspace,
+            report,
+            ["F-001"],
+        );
+        assert.deepEqual(reopenedApplied.appliedFindings, ["F-001"]);
     } finally {
         await rm(workspace, { recursive: true, force: true });
     }

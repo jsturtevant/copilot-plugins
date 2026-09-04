@@ -309,14 +309,19 @@ function appendFinding(finding) {
     const openInVscode = element("button", {
         className: "button secondary vscode-button",
         type: "button",
-        text: "Open annotated project",
+        text: "Open in VS Code",
+    });
+    const applyDiff = element("button", {
+        className: "button secondary vscode-button",
+        type: "button",
+        text: "Apply diff",
     });
     openInVscode.disabled = run?.executionLocation !== "local";
     if (openInVscode.disabled) {
         openInVscode.title = "VS Code launch is available for local review sessions.";
         openInVscode.setAttribute(
             "aria-label",
-            "Open annotated project unavailable because this review ran in the cloud",
+            "Open in VS Code unavailable because this review ran in the cloud",
         );
     } else {
         openInVscode.addEventListener("click", async () => {
@@ -324,11 +329,39 @@ function appendFinding(finding) {
             openInVscode.textContent = "Opening…";
             try {
                 await request("/api/open-vscode", { runId: run.runId, findingId: finding.id });
-                openInVscode.textContent = "Opened annotated project";
+                openInVscode.textContent = "Opened in VS Code";
             } catch (error) {
                 openInVscode.disabled = false;
-                openInVscode.textContent = "Open annotated project";
+                openInVscode.textContent = "Open in VS Code";
                 setStatus(error.message, true);
+            }
+            applyDiff.disabled =
+                run?.executionLocation !== "local" ||
+                finding.fixKind !== "exact" ||
+                run?.appliedFindingIds?.includes(finding.id);
+            applyDiff.title =
+                finding.fixKind !== "exact"
+                    ? "Illustrative suggestions require human judgment."
+                    : run?.executionLocation !== "local"
+                      ? "Diffs can only be applied to local review sessions."
+                      : run?.appliedFindingIds?.includes(finding.id)
+                        ? "This diff is already applied."
+                        : "Apply this exact suggestion in the annotated review project.";
+            if (!applyDiff.disabled) {
+                applyDiff.addEventListener("click", async () => {
+                    applyDiff.disabled = true;
+                    applyDiff.textContent = "Applying…";
+                    try {
+                        await request("/api/apply-diff", { runId: run.runId, findingId: finding.id });
+                        applyDiff.textContent = "Applied";
+                    } catch (error) {
+                        applyDiff.disabled = false;
+                        applyDiff.textContent = "Apply diff";
+                        setStatus(error.message, true);
+                    }
+                });
+            } else if (run?.appliedFindingIds?.includes(finding.id)) {
+                applyDiff.textContent = "Applied";
             }
         });
     }
@@ -342,6 +375,7 @@ function appendFinding(finding) {
         ]),
         element("div", { className: "finding-heading-actions" }, [
             openInVscode,
+            applyDiff,
             element("span", { className: `severity ${finding.severity}`, text: finding.severity }),
         ]),
     ]);

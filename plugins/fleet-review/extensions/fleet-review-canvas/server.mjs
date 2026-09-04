@@ -125,6 +125,9 @@ export async function startCanvasServer(service, store) {
                 case "/api/open-vscode":
                     result = await service.openFindingInVscode(body.runId, body.findingId);
                     break;
+                case "/api/apply-diff":
+                    result = await service.applyFindingDiff(body.runId, body.findingId);
+                    break;
                 default:
                     sendJson(response, 404, { error: "Not found" });
                     return;

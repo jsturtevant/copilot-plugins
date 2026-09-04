@@ -254,7 +254,50 @@ export class FleetReviewService {
             });
         }
 
-        const prepared = await openReviewProjectInVscode(workspacePath, run.report);
+        const prepared = await openReviewProjectInVscode(
+            workspacePath,
+            run.report,
+            run.appliedFindingIds ?? [],
+        );
         return { opened: true, ...prepared };
+    }
+
+    async applyFindingDiff(runId, findingId) {
+        const state = await this.store.load();
+        const run = findRun(state, runId);
+        if (!run?.projectSessionId || !run.report) {
+            throw new Error("This finding does not have a completed review session");
+        }
+        if (run.executionLocation !== "local") {
+            throw new Error("Cloud review fixes cannot be applied to a local workspace");
+        }
+        const finding = run.report.findings.find((candidate) => candidate.id === findingId);
+        if (!finding) {
+            throw new Error(`Unknown finding ${findingId}`);
+        }
+        if (finding.fixKind !== "exact") {
+            throw new Error("Illustrative suggestions require human judgment and cannot be applied");
+        }
+
+        const previousApplied = run.appliedFindingIds ?? [];
+        const appliedFindingIds = [...new Set([...previousApplied, findingId])];
+        const workspacePath =
+            run.workspacePath ||
+            (await this.bridge.resolveSessionWorkspace(run.projectSessionId)).workspacePath;
+        if (!workspacePath) {
+            throw new Error("The review session does not expose a local workspace path");
+        }
+        const prepared = await openReviewProjectInVscode(
+            workspacePath,
+            run.report,
+            appliedFindingIds,
+            previousApplied,
+        );
+        await this.store.update((draft) => {
+            const current = findRun(draft, runId);
+            current.appliedFindingIds = appliedFindingIds;
+            current.workspacePath = workspacePath;
+        });
+        return { applied: true, findingId, ...prepared };
     }
 }
