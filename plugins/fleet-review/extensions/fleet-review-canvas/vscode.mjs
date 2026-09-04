@@ -246,6 +246,13 @@ function buildWorkspaceSource(source, findings, appliedFindingIds) {
     return result;
 }
 
+function buildPriorFixSource(source, findings) {
+    return findings
+        .filter((finding) => finding.fixKind === "exact")
+        .sort((left, right) => right.lineStart - left.lineStart)
+        .reduce((result, finding) => buildProposedSource(result, finding), source);
+}
+
 async function git(workspace, args) {
     return execFileAsync("git", ["-C", workspace, ...args], GIT_OPTIONS);
 }
@@ -270,38 +277,11 @@ export async function prepareReviewWorkspace(
         await git(workspace, ["switch", "--detach", report.pr.headSha]);
     }
 
-    const exactFindings = report.findings
-        .filter((finding) => finding.fixKind === "exact")
-        .sort(
-            (left, right) =>
-                left.path.localeCompare(right.path) || right.lineStart - left.lineStart,
-        );
     const baselineFiles = new Map();
-    const priorFixFiles = new Map();
-    for (const finding of exactFindings) {
+    const findingsByTarget = new Map();
+    for (const finding of report.findings) {
         const target = resolveFindingTarget(workspace, finding.path);
-        const source = priorFixFiles.has(target)
-            ? priorFixFiles.get(target)
-            : (
-                  await git(workspace, [
-                      "show",
-                      `${report.pr.headSha}:${finding.path}`,
-                  ])
-              ).stdout;
-        baselineFiles.set(
-            target,
-            baselineFiles.get(target) ??
-                (
-                    await git(workspace, [
-                        "show",
-                        `${report.pr.headSha}:${finding.path}`,
-                    ])
-                ).stdout,
-        );
-        priorFixFiles.set(target, buildProposedSource(source, finding));
-    }
-    for (const finding of report.findings.filter((candidate) => candidate.fixKind !== "exact")) {
-        const target = resolveFindingTarget(workspace, finding.path);
+        findingsByTarget.set(target, [...(findingsByTarget.get(target) ?? []), finding]);
         if (!baselineFiles.has(target)) {
             baselineFiles.set(
                 target,
@@ -313,11 +293,6 @@ export async function prepareReviewWorkspace(
                 ).stdout,
             );
         }
-    }
-    const findingsByTarget = new Map();
-    for (const finding of report.findings) {
-        const target = resolveFindingTarget(workspace, finding.path);
-        findingsByTarget.set(target, [...(findingsByTarget.get(target) ?? []), finding]);
     }
     const desiredFiles = new Map(
         [...findingsByTarget].map(([target, findings]) => [
@@ -366,9 +341,6 @@ export async function prepareReviewWorkspace(
             const normalizedActual = actual.replace(/\r\n?/g, "\n");
             const matchesAnnotation =
                 normalizedActual === expected.replace(/\r\n?/g, "\n");
-            const matchesPriorFix =
-                priorFixFiles.has(target) &&
-                normalizedActual === priorFixFiles.get(target).replace(/\r\n?/g, "\n");
             const matchesPrevious =
                 normalizedActual === previousFiles.get(target).replace(/\r\n?/g, "\n");
             const matchesDetailedAnnotation =
@@ -376,13 +348,19 @@ export async function prepareReviewWorkspace(
             const matchesLabeledDetailedAnnotation =
                 normalizedActual ===
                 labeledDetailedAnnotatedFiles.get(target).replace(/\r\n?/g, "\n");
-            if (
-                !matchesAnnotation &&
-                !matchesPriorFix &&
-                !matchesPrevious &&
-                !matchesDetailedAnnotation &&
-                !matchesLabeledDetailedAnnotation
-            ) {
+            const matchesKnownWorkspace =
+                matchesAnnotation ||
+                matchesPrevious ||
+                matchesDetailedAnnotation ||
+                matchesLabeledDetailedAnnotation;
+            const matchesPriorFix =
+                !matchesKnownWorkspace &&
+                normalizedActual ===
+                    buildPriorFixSource(
+                        baselineFiles.get(target),
+                        findingsByTarget.get(target),
+                    ).replace(/\r\n?/g, "\n");
+            if (!matchesKnownWorkspace && !matchesPriorFix) {
                 throw new Error("The review workspace has edited source changes; refusing to overwrite them");
             }
         }
