@@ -74,11 +74,44 @@ export class AgentBridge {
 
     async request(prompt) {
         return this.queue.run(async () => {
-            const response = await this.session.sendAndWait({ prompt }, 180_000);
-            if (!response?.data?.content) {
-                throw new Error("Copilot did not return a bridge response");
+            const assistantMessages = [];
+            const unsubscribe = this.session.on("assistant.message", (event) => {
+                if (typeof event?.data?.content === "string") {
+                    assistantMessages.push(event.data.content);
+                }
+            });
+            let response;
+            let waitError;
+            try {
+                response = await this.session.sendAndWait({ prompt }, 180_000);
+            } catch (error) {
+                waitError = error;
+            } finally {
+                unsubscribe();
             }
-            return extractDelimitedJson(response.data.content, BRIDGE_START, BRIDGE_END);
+
+            const responseContent =
+                typeof response?.data?.content === "string" ? response.data.content : "";
+            const candidates = [
+                responseContent,
+                ...[...assistantMessages].reverse(),
+                assistantMessages.join("\n"),
+            ].filter((content, index, values) => content && values.indexOf(content) === index);
+
+            for (const content of candidates) {
+                if (content.includes(BRIDGE_START) && content.includes(BRIDGE_END)) {
+                    return extractDelimitedJson(content, BRIDGE_START, BRIDGE_END);
+                }
+            }
+
+            if (waitError) {
+                throw new Error(`Copilot bridge request failed: ${waitError.message}`);
+            }
+            throw new Error(
+                assistantMessages.length > 0
+                    ? "Copilot responded without the required bridge markers"
+                    : "Copilot completed the turn without emitting an assistant response",
+            );
         });
     }
 
