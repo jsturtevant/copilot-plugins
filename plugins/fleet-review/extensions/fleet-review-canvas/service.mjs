@@ -45,6 +45,7 @@ export class FleetReviewService {
         this.session = session;
         this.store = store;
         this.bridge = new AgentBridge(session);
+        this.reconciliationGenerations = new Map();
         this.unsubscribe = session.on("user.message", (event) => {
             if (
                 typeof event?.data?.content !== "string" ||
@@ -197,13 +198,29 @@ export class FleetReviewService {
         if (!run) {
             throw new Error(`Unknown review run ${runId}`);
         }
+        if (run.report) {
+            return state;
+        }
         if (!run.projectSessionId) {
             throw new Error("The review session has not been created");
         }
-        const result = await this.bridge.inspectSession(run.projectSessionId);
+        const projectSessionId = run.projectSessionId;
+        const generation = (this.reconciliationGenerations.get(runId) ?? 0) + 1;
+        this.reconciliationGenerations.set(runId, generation);
+        const result = await this.bridge.inspectSession(projectSessionId);
+        if (result?.projectSessionId !== projectSessionId) {
+            throw new Error(
+                `Session inspection returned ${result?.projectSessionId || "no project session ID"} instead of ${projectSessionId}`,
+            );
+        }
         return this.store.update((draft) => {
             const current = findRun(draft, runId);
-            if (!current || current.report) {
+            if (
+                !current ||
+                current.report ||
+                current.projectSessionId !== projectSessionId ||
+                this.reconciliationGenerations.get(runId) !== generation
+            ) {
                 return;
             }
             if (result.status === "error") {
@@ -212,6 +229,9 @@ export class FleetReviewService {
             } else if (result.status === "idle") {
                 current.status = "awaiting_result";
                 current.error = "The review session is idle, but its structured result has not arrived.";
+            } else if (result.status === "running") {
+                current.status = "running";
+                current.error = "";
             }
         });
     }

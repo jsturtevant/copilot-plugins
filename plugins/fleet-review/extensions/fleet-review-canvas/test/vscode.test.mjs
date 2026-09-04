@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
+import { EventEmitter } from "node:events";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -8,6 +9,7 @@ import test from "node:test";
 import {
     buildAnnotatedSource,
     buildProposedSource,
+    launchVscode,
     prepareReviewWorkspace,
     resolveFindingTarget,
     vscodeExecutableCandidates,
@@ -39,6 +41,82 @@ test("resolves the native Windows executable without a command shell", () => {
         "C:\\Users\\test\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe",
     );
     assert.ok(candidates.includes("C:\\Tools\\Microsoft VS Code\\Code.exe"));
+});
+
+test("sanitizes Electron mode while preserving the VS Code handoff environment", async () => {
+    const child = new EventEmitter();
+    let invocation;
+    let unrefCalled = false;
+    child.unref = () => {
+        unrefCalled = true;
+    };
+
+    const launched = launchVscode(
+        "Code.exe",
+        "C:\\review-worktree",
+        (...args) => {
+            invocation = args;
+            queueMicrotask(() => child.emit("spawn"));
+            return child;
+        },
+        5,
+        {
+            ELECTRON_RUN_AS_NODE: "1",
+            NORMAL_SETTING: "preserved",
+            PATH: "C:\\Tools",
+        },
+    );
+    await launched;
+
+    assert.deepEqual(invocation, [
+        "Code.exe",
+        ["--new-window", "C:\\review-worktree"],
+        {
+            detached: false,
+            env: {
+                NORMAL_SETTING: "preserved",
+                PATH: "C:\\Tools",
+            },
+            stdio: "ignore",
+            windowsHide: false,
+        },
+    ]);
+    assert.equal(unrefCalled, true);
+});
+
+test("reports a VS Code process launch failure", async () => {
+    const child = new EventEmitter();
+    child.unref = () => {};
+
+    const launched = launchVscode("Code.exe", "C:\\review-worktree", () => {
+        queueMicrotask(() => child.emit("error", new Error("spawn failed")));
+        return child;
+    });
+
+    await assert.rejects(() => launched, /spawn failed/);
+});
+
+test("reports an early nonzero VS Code exit", async () => {
+    const child = new EventEmitter();
+    child.unref = () => {};
+
+    const launched = launchVscode(
+        "Code.exe",
+        "C:\\review-worktree",
+        () => {
+            queueMicrotask(() => {
+                child.emit("spawn");
+                child.emit("exit", 1, null);
+            });
+            return child;
+        },
+        50,
+    );
+
+    await assert.rejects(
+        () => launched,
+        /VS Code exited before opening the workspace with code 1/,
+    );
 });
 
 test("materializes a full proposed file from the reviewed line range", () => {
@@ -238,6 +316,70 @@ test("prepares canonical annotations, applied diffs, and report artifacts", asyn
             ["F-001"],
         );
         assert.deepEqual(reopenedApplied.appliedFindings, ["F-001"]);
+    } finally {
+        await rm(workspace, { recursive: true, force: true });
+    }
+});
+
+test("annotates an abbreviated exact finding but rejects applying it", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "fleet-review-abbreviated-"));
+    try {
+        await execFileAsync("git", ["-C", workspace, "init", "--quiet"]);
+        await execFileAsync("git", ["-C", workspace, "config", "user.name", "Fleet Test"]);
+        await execFileAsync("git", ["-C", workspace, "config", "user.email", "fleet@example.com"]);
+        const source = [
+            "fn count_items() {",
+            "    let count = items.len();",
+            "    process_items();",
+            "    let upper_count = count.to_string();",
+            "}",
+            "",
+        ].join("\n");
+        await writeFile(join(workspace, "context.rs"), source, "utf8");
+        await execFileAsync("git", ["-C", workspace, "add", "context.rs"]);
+        await execFileAsync("git", ["-C", workspace, "commit", "--quiet", "-m", "reviewed"]);
+        const headSha = (
+            await execFileAsync("git", ["-C", workspace, "rev-parse", "HEAD"])
+        ).stdout.trim();
+        const report = {
+            runId: "run-abbreviated",
+            reportMarkdown: "# Review",
+            pr: { headSha },
+            findings: [
+                {
+                    id: "F-002",
+                    severity: "high",
+                    title: "Handle count safely",
+                    problem: "The count needs additional validation.",
+                    evidence: "The abbreviated hunk omits reviewed statements.",
+                    path: "context.rs",
+                    lineStart: 2,
+                    lineEnd: 4,
+                    currentCode:
+                        "let count = items.len();\n...\nlet upper_count = count.to_string();",
+                    suggestedCode:
+                        "let count = checked_count(items)?;\nlet upper_count = count.to_string();",
+                    fixKind: "exact",
+                    judgmentNotes: "",
+                },
+            ],
+        };
+
+        const prepared = await prepareReviewWorkspace(workspace, report);
+        assert.deepEqual(prepared.annotatedFindings, ["F-002"]);
+        const annotatedSource = await readFile(join(workspace, "context.rs"), "utf8");
+        assert.match(annotatedSource, /REVIEW ISSUE #2 \[HIGH\]: Handle count safely/);
+        assert.match(annotatedSource, /process_items\(\);/);
+
+        const reopened = await prepareReviewWorkspace(workspace, report);
+        assert.deepEqual(reopened.annotatedFindings, ["F-002"]);
+        assert.equal(await readFile(join(workspace, "context.rs"), "utf8"), annotatedSource);
+
+        await assert.rejects(
+            () => prepareReviewWorkspace(workspace, report, ["F-002"], []),
+            /F-002: reviewed code no longer matches context\.rs/,
+        );
+        assert.equal(await readFile(join(workspace, "context.rs"), "utf8"), annotatedSource);
     } finally {
         await rm(workspace, { recursive: true, force: true });
     }

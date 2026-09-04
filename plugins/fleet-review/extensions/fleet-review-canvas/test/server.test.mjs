@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+import { EventEmitter } from "node:events";
 import test from "node:test";
 import { startCanvasServer } from "../server.mjs";
+import { launchVscode } from "../vscode.mjs";
 
 test("serves the canvas and protects state with a capability token", async () => {
     const state = { version: 1 };
@@ -34,11 +36,30 @@ test("serves the canvas and protects state with a capability token", async () =>
 
 test("serves the diff module and routes authenticated VS Code launches", async () => {
     const calls = [];
+    let exitTimer;
+    let launchedProcess;
+    let launchedProcessExited = false;
     const store = { subscribe: () => () => {} };
     const service = {
         getState: async () => ({}),
         openFindingInVscode: async (...args) => {
             calls.push(args);
+            await launchVscode(
+                "Code.exe",
+                "C:\\review-worktree",
+                () => {
+                    launchedProcess = new EventEmitter();
+                    launchedProcess.unref = () => {};
+                    queueMicrotask(() => launchedProcess.emit("spawn"));
+                    exitTimer = setTimeout(() => {
+                        launchedProcessExited = true;
+                        launchedProcess.emit("exit", 0);
+                        launchedProcess.emit("close", 0);
+                    }, 2_000);
+                    return launchedProcess;
+                },
+                5,
+            );
             return { opened: true };
         },
         applyFindingDiff: async (...args) => {
@@ -58,7 +79,9 @@ test("serves the diff module and routes authenticated VS Code launches", async (
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ runId: "run-1", findingId: "F-001" }),
         });
+        clearTimeout(exitTimer);
         assert.equal(response.status, 200);
+        assert.equal(launchedProcessExited, false);
         assert.deepEqual(calls, [["run-1", "F-001"]]);
 
         const applyResponse = await fetch(new URL(`/api/apply-diff${url.search}`, url), {
@@ -69,6 +92,7 @@ test("serves the diff module and routes authenticated VS Code launches", async (
         assert.equal(applyResponse.status, 200);
         assert.deepEqual(calls[1], ["apply", "run-1", "F-001"]);
     } finally {
+        clearTimeout(exitTimer);
         await entry.close();
     }
 });
