@@ -274,7 +274,7 @@ export async function launchVscode(
         detached: false,
         env: childEnvironment,
         stdio: "ignore",
-        windowsHide: true,
+        windowsHide: false,
     });
     await new Promise((resolve, reject) => {
         let handoffTimer;

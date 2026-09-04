@@ -78,7 +78,7 @@ test("sanitizes Electron mode while preserving the VS Code handoff environment",
                 PATH: "C:\\Tools",
             },
             stdio: "ignore",
-            windowsHide: true,
+            windowsHide: false,
         },
     ]);
     assert.equal(unrefCalled, true);
