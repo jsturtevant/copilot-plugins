@@ -201,7 +201,7 @@ Controls, notices, and code containers use gently squared 6px corners. Badges us
 ### Code Comparison
 - **Style:** Two equal bordered panes on a subtle canvas, each with a compact ruled header and horizontally scrollable monospace lines.
 - **Evidence Treatment:** Reviewed code stays neutral. The proposed pane is a line-level diff with old and new line numbers, explicit minus/plus prefixes, restrained red removal rows, and restrained green addition rows.
-- **Source Launch:** Local review findings expose a compact secondary action that materializes the file from the report's exact reviewed commit, applies the suggestion to a generated copy, and opens both in VS Code's side-by-side diff editor. The child worktree remains unchanged even when it is checked out at another commit. Cloud findings retain the disabled control with an explicit reason.
+- **Source Launch:** Local review findings expose a compact secondary action that prepares the dedicated child worktree at the report's exact reviewed commit, applies every safe exact suggestion as an uncommitted source edit, preserves the Markdown/JSON review artifacts, and opens the whole project in VS Code. Illustrative suggestions remain documented but unapplied. Cloud findings retain the disabled control with an explicit reason.
 - **Responsive:** Panes stack below 700px without changing their reviewed-then-proposed order.
 
 ### Status Notices

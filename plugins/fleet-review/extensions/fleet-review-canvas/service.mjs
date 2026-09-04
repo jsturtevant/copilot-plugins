@@ -1,9 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { dirname, join } from "node:path";
 import { AgentBridge } from "./bridge.mjs";
 import { getPullRequestSnapshot, listOpenPullRequests, validateRepository } from "./github.mjs";
 import { makeReviewKey, parseReviewResult } from "./schema.mjs";
-import { openFindingInVscode } from "./vscode.mjs";
+import { openReviewProjectInVscode } from "./vscode.mjs";
 
 function normalizeProjects(payload) {
     if (!payload || !Array.isArray(payload.projects)) {
@@ -236,8 +235,7 @@ export class FleetReviewService {
         if (run.executionLocation !== "local") {
             throw new Error("Cloud review files cannot be opened in local VS Code");
         }
-        const finding = run.report.findings.find((candidate) => candidate.id === findingId);
-        if (!finding) {
+        if (!run.report.findings.some((candidate) => candidate.id === findingId)) {
             throw new Error(`Unknown finding ${findingId}`);
         }
 
@@ -256,14 +254,7 @@ export class FleetReviewService {
             });
         }
 
-        const artifactRoot = join(dirname(this.store.path), "vscode");
-        const targets = await openFindingInVscode(
-            workspacePath,
-            artifactRoot,
-            `${runId}\0${finding.id}`,
-            run.report.pr.headSha,
-            finding,
-        );
-        return { opened: true, ...targets, line: finding.lineStart };
+        const prepared = await openReviewProjectInVscode(workspacePath, run.report);
+        return { opened: true, ...prepared };
     }
 }

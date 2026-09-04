@@ -309,14 +309,14 @@ function appendFinding(finding) {
     const openInVscode = element("button", {
         className: "button secondary vscode-button",
         type: "button",
-        text: "Open diff in VS Code",
+        text: "Open project in VS Code",
     });
     openInVscode.disabled = run?.executionLocation !== "local";
     if (openInVscode.disabled) {
         openInVscode.title = "VS Code launch is available for local review sessions.";
         openInVscode.setAttribute(
             "aria-label",
-            "Open diff in VS Code unavailable because this review ran in the cloud",
+            "Open project in VS Code unavailable because this review ran in the cloud",
         );
     } else {
         openInVscode.addEventListener("click", async () => {
@@ -324,10 +324,10 @@ function appendFinding(finding) {
             openInVscode.textContent = "Opening…";
             try {
                 await request("/api/open-vscode", { runId: run.runId, findingId: finding.id });
-                openInVscode.textContent = "Opened diff";
+                openInVscode.textContent = "Opened project";
             } catch (error) {
                 openInVscode.disabled = false;
-                openInVscode.textContent = "Open diff in VS Code";
+                openInVscode.textContent = "Open project in VS Code";
                 setStatus(error.message, true);
             }
         });
