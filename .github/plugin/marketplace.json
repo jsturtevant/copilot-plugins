@@ -10,8 +10,8 @@
   "plugins": [
     {
       "name": "fleet-review",
-      "description": "Run a comprehensive parallel code review across security, safety, networking, isolation, SDK consistency, and code quality.",
-      "version": "1.0.0",
+      "description": "Run a comprehensive parallel code review across security, correctness, reliability, input boundaries, isolation, and API consistency.",
+      "version": "1.0.1",
       "author": {
         "name": "jsturtevant",
         "url": "https://github.com/jsturtevant"
