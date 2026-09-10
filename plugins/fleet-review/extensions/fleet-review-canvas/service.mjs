@@ -4,6 +4,8 @@ import { getPullRequestSnapshot, listOpenPullRequests, validateRepository } from
 import { makeReviewKey, parseReviewResult } from "./schema.mjs";
 import { openReviewProjectInVscode } from "./vscode.mjs";
 
+const MAX_PENDING_COMPLETIONS = 100;
+
 function normalizeProjects(payload) {
     if (!payload || !Array.isArray(payload.projects)) {
         throw new Error("Project bridge response did not contain a projects array");
@@ -208,6 +210,13 @@ export class FleetReviewService {
         if (!completion) {
             return undefined;
         }
+        if (
+            !this.completedProjectSessions.has(completion.projectSessionId) &&
+            this.completedProjectSessions.size >= MAX_PENDING_COMPLETIONS
+        ) {
+            const oldestProjectSessionId = this.completedProjectSessions.keys().next().value;
+            this.completedProjectSessions.delete(oldestProjectSessionId);
+        }
         this.completedProjectSessions.set(completion.projectSessionId, completion.status);
         return this.reconcileProjectSession(completion.projectSessionId, completion.status);
     }
@@ -325,7 +334,11 @@ export class FleetReviewService {
             } else if (status === "idle") {
                 current.status = "awaiting_result";
                 current.error = "The review session is idle, but its structured result has not arrived.";
-            } else if (status === "running") {
+            } else if (
+                status === "running" &&
+                current.status !== "failed" &&
+                current.status !== "awaiting_result"
+            ) {
                 current.status = "running";
                 current.error = "";
             }

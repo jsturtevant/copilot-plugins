@@ -373,6 +373,25 @@ Final status: idle
     assert.equal(run.status, "awaiting_result");
 });
 
+test("bounds completion notifications that do not match a review run", async () => {
+    const { service, emitUserMessage } = serviceHarness({
+        projects: [],
+        pullRequests: {},
+        reviews: {},
+    });
+
+    for (let index = 0; index < 101; index += 1) {
+        const projectSessionId = `00000000-0000-0000-0000-${index.toString().padStart(12, "0")}`;
+        await emitUserMessage(`<system_notification>
+Session "Unrelated session" (id: ${projectSessionId}) has finished processing.
+Final status: idle
+</system_notification>`);
+    }
+
+    assert.equal(service.completedProjectSessions.size, 100);
+    assert.equal(service.completedProjectSessions.has("00000000-0000-0000-0000-000000000000"), false);
+});
+
 test("coalesces duplicate completion notifications", async () => {
     const run = {
         ...completedRun("local"),
@@ -449,6 +468,30 @@ test("ignores an older reconciliation result after a newer status check", async 
     assert.equal(state.reviews[run.reviewKey][0].error, "");
 });
 
+test("manual reconciliation does not regress a terminal lifecycle status", async () => {
+    const run = {
+        ...completedRun("local"),
+        report: null,
+        status: "failed",
+        error: "The child review session failed.",
+    };
+    const { service, state } = serviceHarness({
+        projects: [],
+        pullRequests: {},
+        reviews: { [run.reviewKey]: [run] },
+    });
+    service.bridge.inspectSession = async () => ({
+        projectSessionId: run.projectSessionId,
+        status: "running",
+        summary: "The session status has not refreshed yet.",
+    });
+
+    await service.reconcileReview(run.runId);
+
+    assert.equal(state.reviews[run.reviewKey][0].status, "failed");
+    assert.equal(state.reviews[run.reviewKey][0].error, "The child review session failed.");
+});
+
 test("structured results win races with automatic reconciliation", async () => {
     const run = {
         ...completedRun("local"),
@@ -480,7 +523,7 @@ Final status: error
         current.error = "";
     });
     resolveInspection({
-        projectSessionId: "session-1",
+        projectSessionId: run.projectSessionId,
         status: "error",
         summary: "Late failure notification.",
     });
