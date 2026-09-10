@@ -40,22 +40,43 @@ function findRun(state, runId) {
     return undefined;
 }
 
+function findRunByProjectSession(state, projectSessionId) {
+    for (const history of Object.values(state.reviews)) {
+        const run = history.find((candidate) => candidate.projectSessionId === projectSessionId);
+        if (run) {
+            return run;
+        }
+    }
+    return undefined;
+}
+
+function parseProjectSessionCompletion(content) {
+    if (
+        typeof content !== "string" ||
+        !content.startsWith("<system_notification>") ||
+        !content.includes("has finished processing.")
+    ) {
+        return undefined;
+    }
+    const match = content.match(
+        /\(id:\s*([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\)[\s\S]*?Final status:\s*(idle|error)\b/i,
+    );
+    return match ? { projectSessionId: match[1], status: match[2].toLowerCase() } : undefined;
+}
+
 export class FleetReviewService {
     constructor(session, store) {
         this.session = session;
         this.store = store;
         this.bridge = new AgentBridge(session);
         this.reconciliationGenerations = new Map();
+        this.completedProjectSessions = new Map();
+        this.automaticReconciliations = new Map();
         this.unsubscribe = session.on("user.message", (event) => {
-            if (
-                typeof event?.data?.content !== "string" ||
-                !event.data.content.includes("FLEET_REVIEW_RESULT_START") ||
-                event.data.content.includes("FLEET_CANVAS_BRIDGE_START")
-            ) {
-                return;
-            }
-            void this.acceptResultMessage(event.data.content).catch((error) =>
-                session.log(`Fleet Review could not accept a child result: ${error.message}`, { level: "error" }),
+            return this.handleUserMessage(event?.data?.content).catch((error) =>
+                session.log(`Fleet Review could not process a child session update: ${error.message}`, {
+                    level: "error",
+                }),
             );
         });
     }
@@ -127,8 +148,10 @@ export class FleetReviewService {
             draft.reviews[reviewKey].unshift(run);
         });
 
+        let result;
+        let updated;
         try {
-            const result = await this.bridge.createReviewSession({
+            result = await this.bridge.createReviewSession({
                 projectId,
                 repository,
                 pullRequest,
@@ -138,7 +161,7 @@ export class FleetReviewService {
             if (typeof result.projectSessionId !== "string" || !result.projectSessionId) {
                 throw new Error("Session creation response did not include a projectSessionId");
             }
-            return this.store.update((draft) => {
+            updated = await this.store.update((draft) => {
                 const pending = findRun(draft, runId);
                 if (!pending) {
                     throw new Error(`Review run ${runId} disappeared from state`);
@@ -158,18 +181,82 @@ export class FleetReviewService {
             });
             throw error;
         }
+
+        const completionStatus = this.completedProjectSessions.get(result.projectSessionId);
+        if (completionStatus) {
+            try {
+                return await this.reconcileProjectSession(result.projectSessionId, completionStatus);
+            } catch (error) {
+                await this.session.log(`Fleet Review could not reconcile the completed child session: ${error.message}`, {
+                    level: "error",
+                });
+            }
+        }
+        return updated;
+    }
+
+    async handleUserMessage(content) {
+        if (
+            typeof content === "string" &&
+            content.includes("FLEET_REVIEW_RESULT_START") &&
+            !content.includes("FLEET_CANVAS_BRIDGE_START")
+        ) {
+            return this.acceptResultMessage(content);
+        }
+
+        const completion = parseProjectSessionCompletion(content);
+        if (!completion) {
+            return undefined;
+        }
+        this.completedProjectSessions.set(completion.projectSessionId, completion.status);
+        return this.reconcileProjectSession(completion.projectSessionId, completion.status);
+    }
+
+    reconcileProjectSession(projectSessionId, completionStatus) {
+        const inFlight = this.automaticReconciliations.get(projectSessionId);
+        if (inFlight) {
+            return inFlight.then((state) => {
+                const pendingStatus = this.completedProjectSessions.get(projectSessionId);
+                return pendingStatus
+                    ? this.reconcileProjectSession(projectSessionId, pendingStatus)
+                    : state;
+            });
+        }
+        const reconciliation = this.reconcileProjectSessionNow(projectSessionId, completionStatus).finally(() => {
+            this.automaticReconciliations.delete(projectSessionId);
+        });
+        this.automaticReconciliations.set(projectSessionId, reconciliation);
+        return reconciliation;
+    }
+
+    async reconcileProjectSessionNow(projectSessionId, completionStatus) {
+        const state = await this.store.load();
+        const run = findRunByProjectSession(state, projectSessionId);
+        if (!run) {
+            return state;
+        }
+        if (run.report) {
+            this.completedProjectSessions.delete(projectSessionId);
+            return state;
+        }
+        const updated = await this.reconcileReview(run.runId, completionStatus);
+        if (this.completedProjectSessions.get(projectSessionId) === completionStatus) {
+            this.completedProjectSessions.delete(projectSessionId);
+        }
+        return updated;
     }
 
     async acceptResultMessage(content) {
         const report = parseReviewResult(content);
         let currentPullRequest;
+        let projectSessionId;
         let stalenessError = "";
         try {
             currentPullRequest = await getPullRequestSnapshot(report.repository, report.pr.number);
         } catch (error) {
             stalenessError = `Could not verify the current pull request head: ${error.message}`;
         }
-        return this.store.update((state) => {
+        const updated = await this.store.update((state) => {
             const run = findRun(state, report.runId);
             if (!run) {
                 throw new Error(`Ignoring result for unknown run ${report.runId}`);
@@ -177,6 +264,7 @@ export class FleetReviewService {
             if (run.reviewKey !== report.reviewKey) {
                 throw new Error(`Result review key ${report.reviewKey} does not match ${run.reviewKey}`);
             }
+            projectSessionId = run.projectSessionId;
             run.report = report;
             run.status = report.status;
             run.completedAt = report.completedAt;
@@ -190,9 +278,13 @@ export class FleetReviewService {
                 ? `The child session reported head ${report.pr.headSha}, but this run requested ${run.requestedHeadSha}.`
                 : stalenessError;
         });
+        if (projectSessionId) {
+            this.completedProjectSessions.delete(projectSessionId);
+        }
+        return updated;
     }
 
-    async reconcileReview(runId) {
+    async reconcileReview(runId, completionStatus) {
         const state = await this.store.load();
         const run = findRun(state, runId);
         if (!run) {
@@ -223,13 +315,17 @@ export class FleetReviewService {
             ) {
                 return;
             }
-            if (result.status === "error") {
+            const status = completionStatus ?? result.status;
+            if (status === "error") {
                 current.status = "failed";
-                current.error = result.summary || "The child review session failed.";
-            } else if (result.status === "idle") {
+                current.error =
+                    result.status === "error" && result.summary
+                        ? result.summary
+                        : "The child review session failed.";
+            } else if (status === "idle") {
                 current.status = "awaiting_result";
                 current.error = "The review session is idle, but its structured result has not arrived.";
-            } else if (result.status === "running") {
+            } else if (status === "running") {
                 current.status = "running";
                 current.error = "";
             }
