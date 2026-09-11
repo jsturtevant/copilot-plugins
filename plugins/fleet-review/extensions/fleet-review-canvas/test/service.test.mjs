@@ -3,8 +3,12 @@ import test from "node:test";
 import { FleetReviewService } from "../service.mjs";
 
 function serviceHarness(state) {
+    const handlers = new Map();
     const session = {
-        on: () => () => {},
+        on: (eventType, handler) => {
+            handlers.set(eventType, handler);
+            return () => handlers.delete(eventType);
+        },
         log: () => {},
     };
     const store = {
@@ -14,7 +18,12 @@ function serviceHarness(state) {
             return structuredClone(state);
         },
     };
-    return { service: new FleetReviewService(session, store), state, store };
+    return {
+        service: new FleetReviewService(session, store),
+        state,
+        store,
+        emitUserMessage: (content) => handlers.get("user.message")?.({ data: { content } }),
+    };
 }
 
 function serviceForRun(run) {
@@ -206,6 +215,224 @@ test("records a confirmed error for the bound project session", async () => {
     assert.equal(state.reviews[run.reviewKey][0].error, "The child process exited.");
 });
 
+test("automatically reconciles an error completion notification", async () => {
+    const run = {
+        ...completedRun("local"),
+        projectSessionId: "00000000-0000-0000-0000-000000000001",
+        report: null,
+        status: "running",
+        error: "",
+    };
+    const { service, state, emitUserMessage } = serviceHarness({
+        projects: [],
+        pullRequests: {},
+        reviews: { [run.reviewKey]: [run] },
+    });
+    service.bridge.inspectSession = async () => ({
+        projectSessionId: run.projectSessionId,
+        status: "error",
+        summary: "The child process exited.",
+    });
+
+    await emitUserMessage(`<system_notification>
+Session "Review owner/repo#1" (id: ${run.projectSessionId}) has finished processing.
+Final status: error
+</system_notification>`);
+
+    assert.equal(state.reviews[run.reviewKey][0].status, "failed");
+    assert.equal(state.reviews[run.reviewKey][0].error, "The child process exited.");
+});
+
+test("automatically records idle completion without a structured result", async () => {
+    const run = {
+        ...completedRun("local"),
+        projectSessionId: "00000000-0000-0000-0000-000000000001",
+        report: null,
+        status: "running",
+        error: "",
+    };
+    const { service, state, emitUserMessage } = serviceHarness({
+        projects: [],
+        pullRequests: {},
+        reviews: { [run.reviewKey]: [run] },
+    });
+    service.bridge.inspectSession = async () => ({
+        projectSessionId: run.projectSessionId,
+        status: "idle",
+        summary: "Review is idle.",
+    });
+
+    await emitUserMessage(`<system_notification>
+Session "Review owner/repo#1" (id: ${run.projectSessionId}) has finished processing.
+Final status: idle
+</system_notification>`);
+
+    assert.equal(state.reviews[run.reviewKey][0].status, "awaiting_result");
+    assert.equal(
+        state.reviews[run.reviewKey][0].error,
+        "The review session is idle, but its structured result has not arrived.",
+    );
+});
+
+test("terminal notifications override a stale running inspection", async () => {
+    const run = {
+        ...completedRun("local"),
+        projectSessionId: "00000000-0000-0000-0000-000000000001",
+        report: null,
+        status: "running",
+        error: "",
+    };
+    const { service, state, emitUserMessage } = serviceHarness({
+        projects: [],
+        pullRequests: {},
+        reviews: { [run.reviewKey]: [run] },
+    });
+    service.bridge.inspectSession = async () => ({
+        projectSessionId: run.projectSessionId,
+        status: "running",
+        summary: "The session status has not refreshed yet.",
+    });
+
+    await emitUserMessage(`<system_notification>
+Session "Review owner/repo#1" (id: ${run.projectSessionId}) has finished processing.
+Final status: error
+</system_notification>`);
+
+    assert.equal(state.reviews[run.reviewKey][0].status, "failed");
+    assert.equal(state.reviews[run.reviewKey][0].error, "The child review session failed.");
+});
+
+test("structured results received before completion skip automatic reconciliation", async () => {
+    const run = {
+        ...completedRun("local"),
+        projectSessionId: "00000000-0000-0000-0000-000000000001",
+        status: "complete",
+        error: "",
+    };
+    const { service, state, emitUserMessage } = serviceHarness({
+        projects: [],
+        pullRequests: {},
+        reviews: { [run.reviewKey]: [run] },
+    });
+    service.bridge.inspectSession = async () => {
+        throw new Error("inspectSession should not be called");
+    };
+
+    await emitUserMessage(`<system_notification>
+Session "Review owner/repo#1" (id: ${run.projectSessionId}) has finished processing.
+Final status: idle
+</system_notification>`);
+
+    assert.equal(state.reviews[run.reviewKey][0].status, "complete");
+    assert.deepEqual(state.reviews[run.reviewKey][0].report, run.report);
+});
+
+test("reconciles a completion notification received before the child session is bound", async () => {
+    const projectSessionId = "00000000-0000-0000-0000-000000000001";
+    const state = {
+        projects: [
+            {
+                id: "project-1",
+                enabled: true,
+                githubRepo: "owner/repo",
+            },
+        ],
+        pullRequests: {
+            "owner/repo": [
+                {
+                    number: 1,
+                    headRefOid: "a".repeat(40),
+                },
+            ],
+        },
+        reviews: {},
+    };
+    const { service, emitUserMessage } = serviceHarness(state);
+    service.bridge.createReviewSession = async () => {
+        await emitUserMessage(`<system_notification>
+Session "Review owner/repo#1" (id: ${projectSessionId}) has finished processing.
+Final status: idle
+</system_notification>`);
+        return { projectSessionId, executionLocation: "local" };
+    };
+    service.bridge.inspectSession = async () => ({
+        projectSessionId,
+        status: "idle",
+        summary: "Review is idle.",
+    });
+
+    const updated = await service.startReview({
+        projectId: "project-1",
+        repository: "owner/repo",
+        prNumber: 1,
+        executionLocation: "local",
+    });
+    const run = updated.reviews["owner/repo#1"][0];
+
+    assert.equal(run.projectSessionId, projectSessionId);
+    assert.equal(run.status, "awaiting_result");
+});
+
+test("bounds completion notifications that do not match a review run", async () => {
+    const { service, emitUserMessage } = serviceHarness({
+        projects: [],
+        pullRequests: {},
+        reviews: {},
+    });
+
+    for (let index = 0; index < 101; index += 1) {
+        const projectSessionId = `00000000-0000-0000-0000-${index.toString().padStart(12, "0")}`;
+        await emitUserMessage(`<system_notification>
+Session "Unrelated session" (id: ${projectSessionId}) has finished processing.
+Final status: idle
+</system_notification>`);
+    }
+
+    assert.equal(service.completedProjectSessions.size, 100);
+    assert.equal(service.completedProjectSessions.has("00000000-0000-0000-0000-000000000000"), false);
+});
+
+test("coalesces duplicate completion notifications", async () => {
+    const run = {
+        ...completedRun("local"),
+        projectSessionId: "00000000-0000-0000-0000-000000000001",
+        report: null,
+        status: "running",
+        error: "",
+    };
+    const { service, state, emitUserMessage } = serviceHarness({
+        projects: [],
+        pullRequests: {},
+        reviews: { [run.reviewKey]: [run] },
+    });
+    let resolveInspection;
+    let inspectionCount = 0;
+    service.bridge.inspectSession = () => {
+        inspectionCount += 1;
+        return new Promise((resolve) => {
+            resolveInspection = resolve;
+        });
+    };
+    const notification = `<system_notification>
+Session "Review owner/repo#1" (id: ${run.projectSessionId}) has finished processing.
+Final status: error
+</system_notification>`;
+
+    const first = emitUserMessage(notification);
+    const duplicate = emitUserMessage(notification);
+    await new Promise((resolve) => setImmediate(resolve));
+    resolveInspection({
+        projectSessionId: run.projectSessionId,
+        status: "error",
+        summary: "The child process exited.",
+    });
+    await Promise.all([first, duplicate]);
+
+    assert.equal(inspectionCount, 1);
+    assert.equal(state.reviews[run.reviewKey][0].status, "failed");
+    assert.equal(state.reviews[run.reviewKey][0].error, "The child process exited.");
+});
+
 test("ignores an older reconciliation result after a newer status check", async () => {
     const run = { ...completedRun("local"), report: null, status: "running", error: "" };
     const { service, state } = serviceHarness({
@@ -241,9 +468,39 @@ test("ignores an older reconciliation result after a newer status check", async 
     assert.equal(state.reviews[run.reviewKey][0].error, "");
 });
 
-test("completed results win races with in-flight reconciliation", async () => {
-    const run = { ...completedRun("local"), report: null, status: "running", error: "" };
-    const { service, state, store } = serviceHarness({
+test("manual reconciliation does not regress a terminal lifecycle status", async () => {
+    const run = {
+        ...completedRun("local"),
+        report: null,
+        status: "failed",
+        error: "The child review session failed.",
+    };
+    const { service, state } = serviceHarness({
+        projects: [],
+        pullRequests: {},
+        reviews: { [run.reviewKey]: [run] },
+    });
+    service.bridge.inspectSession = async () => ({
+        projectSessionId: run.projectSessionId,
+        status: "running",
+        summary: "The session status has not refreshed yet.",
+    });
+
+    await service.reconcileReview(run.runId);
+
+    assert.equal(state.reviews[run.reviewKey][0].status, "failed");
+    assert.equal(state.reviews[run.reviewKey][0].error, "The child review session failed.");
+});
+
+test("structured results win races with automatic reconciliation", async () => {
+    const run = {
+        ...completedRun("local"),
+        projectSessionId: "00000000-0000-0000-0000-000000000001",
+        report: null,
+        status: "running",
+        error: "",
+    };
+    const { service, state, store, emitUserMessage } = serviceHarness({
         projects: [],
         pullRequests: {},
         reviews: { [run.reviewKey]: [run] },
@@ -254,7 +511,10 @@ test("completed results win races with in-flight reconciliation", async () => {
             resolveInspection = resolve;
         });
 
-    const reconciliation = service.reconcileReview(run.runId);
+    const reconciliation = emitUserMessage(`<system_notification>
+Session "Review owner/repo#1" (id: ${run.projectSessionId}) has finished processing.
+Final status: error
+</system_notification>`);
     await new Promise((resolve) => setImmediate(resolve));
     await store.update((draft) => {
         const current = draft.reviews[run.reviewKey][0];
@@ -263,7 +523,7 @@ test("completed results win races with in-flight reconciliation", async () => {
         current.error = "";
     });
     resolveInspection({
-        projectSessionId: "session-1",
+        projectSessionId: run.projectSessionId,
         status: "error",
         summary: "Late failure notification.",
     });

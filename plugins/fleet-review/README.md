@@ -10,6 +10,7 @@ without posting to GitHub.
 - Uses diverse Claude, GPT, and Gemini models when available.
 - Selects configured repositories and open pull requests in the canvas.
 - Runs reviews in isolated local worktrees or cloud sessions.
+- Reconciles child session failures and idle completions automatically while retaining manual refresh.
 - Reopens recent reports across repositories.
 - Shows each finding with evidence and a line-level red/green proposed diff.
 - Opens local review worktrees in VS Code with canonical source annotations.
