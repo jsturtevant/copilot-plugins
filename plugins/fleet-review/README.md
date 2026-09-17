@@ -7,7 +7,7 @@ without posting to GitHub.
 ## Features
 
 - Reviews the complete pull request diff through six complementary lenses.
-- Uses diverse Claude, GPT, and Gemini models when available.
+- Uses only GPT Astra, GPT Terra, GPT Sol, Microsoft MAI, and Claude models, preferring the latest available versions.
 - Selects configured repositories and open pull requests in the canvas.
 - Runs reviews in isolated local worktrees or cloud sessions.
 - Reconciles child session failures and idle completions automatically while retaining manual refresh.
