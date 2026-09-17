@@ -51,7 +51,9 @@ Run six code-review agents in parallel over the complete PR diff, using these le
 5. Sandbox isolation.
 6. SDK/API consistency and maintainability.
 
-Use diverse current Claude, GPT, and Gemini models where available. Report only high-confidence defects introduced by this PR. Every finding needs severity, evidence, exact reviewed file and line range, the smallest proving current-code hunk, and a suggested-code hunk. Mark a suggestion "exact" only when it is a safe replacement; otherwise mark it "illustrative" and explain the remaining human judgment.
+Use only GPT Astra, GPT Terra, GPT Sol, Microsoft MAI, and Claude models. Current model IDs include gpt-6-astra, gpt-5.6-terra, gpt-5.6-sol, mai-code-1.1-flash, claude-opus-5, and claude-sonnet-5. Prefer the latest available versions within these families and distribute the six agents across them. Reuse available allowed models as needed; do not substitute other model families.
+
+Report only high-confidence defects introduced by this PR. Every finding needs severity, evidence, exact reviewed file and line range, the smallest proving current-code hunk, and a suggested-code hunk. Mark a suggestion "exact" only when it is a safe replacement; otherwise mark it "illustrative" and explain the remaining human judgment.
 
 Do not modify source files, apply fixes, stage or commit changes, post PR comments, or perform any GitHub mutation. Write Markdown and JSON reports under docs/review/ when the environment permits, but always return the complete structured result to the creator. Deduplicate findings, sort critical/high/medium/low, and keep the 50 highest-severity findings. Set counts.critical, counts.high, counts.medium, counts.low, and counts.confirmedTotal from the complete deduplicated set before capping; the four severity counts must sum to confirmedTotal. If an agent fails or times out, preserve successful findings and return status "partial" with the failure.
 

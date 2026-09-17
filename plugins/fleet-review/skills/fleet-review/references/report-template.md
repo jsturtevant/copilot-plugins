@@ -47,8 +47,10 @@ Use the same format as Critical Issues.
 
 ## Reviewer Agreement Matrix
 
-| Issue | Claude Opus 5 | GPT-5.6 Sol | Gemini 3.1 Pro |
-|-------|---------------|-------------|----------------|
+| Issue | GPT Astra | GPT Terra | GPT Sol | Microsoft MAI | Claude Opus | Claude Sonnet |
+|-------|-----------|-----------|---------|---------------|-------------|---------------|
+
+Label model columns with the actual model IDs used in the review.
 
 ## Recommendations
 

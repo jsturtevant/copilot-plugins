@@ -12,9 +12,9 @@ description: >-
 # Fleet Review
 
 Launch six parallel code-review agents, consolidate their findings, and write the report to
-`docs/review/` in the repository. Use different models for each agent, preferring the latest
-versions of GPT Sol, Gemini Pro, and Claude Opus. Review only commits not merged into the main
-branch, and make sure the local main branch is current with upstream.
+`docs/review/` in the repository. Use only GPT Astra, GPT Terra, GPT Sol, Microsoft MAI, and Claude
+models, preferring the latest available versions within these families. Review only commits not
+merged into the main branch, and make sure the local main branch is current with upstream.
 
 Do not modify source files, post pull request comments, commit, or stage changes. Leave only the
 review artifacts for the developer to inspect.
@@ -40,11 +40,16 @@ specifies custom focus areas, adapt the review lenses accordingly.
 Use the `task` tool with `agent_type: "code-review"` and `mode: "background"` for all six
 agents simultaneously.
 
-Use different models for diverse perspectives:
+Distribute the six agents across these model families for diverse perspectives:
 
-- Claude Opus 5
-- GPT-5.6 Sol
-- Gemini 3.1 Pro
+- GPT Astra (current model ID: `gpt-6-astra`)
+- GPT Terra (current model ID: `gpt-5.6-terra`)
+- GPT Sol (current model ID: `gpt-5.6-sol`)
+- Microsoft MAI (for example, `mai-code-1.1-flash`)
+- Claude Opus (current model ID: `claude-opus-5`)
+- Claude Sonnet (current model ID: `claude-sonnet-5`)
+
+Reuse available allowed models as needed; do not substitute other model families.
 
 Each agent prompt must:
 
